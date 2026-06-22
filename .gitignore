@@ -216,3 +216,15 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- Frontend (Node / pnpm / Vite) ---
+node_modules/
+.pnpm-store/
+apps/frontend/dist/
+apps/frontend/.vite/
+*.tsbuildinfo
+npm-debug.log*
+pnpm-debug.log*
+
+# --- Docker / локальные данные ---
+.docker-data/

@@ -275,7 +275,7 @@ GET    /jobs/{id}/events               прогресс генерации (SSE-
 > **Стратегия:** идём **API-first** — MVP собираем на hosted-моделях (без GPU, без ML-ops, быстрее к результату), затем подключаем локальные модели через те же провайдер-абстракции (Этап 6). Если GPU есть с самого начала — Этап 6 можно вести параллельно.
 
 ### Этап 0 — Подготовка (1 неделя)
-- [ ] Репозиторий (monorepo), структура, docker-compose (api, worker, postgres, redis, minio). _<!-- частично: git-репозиторий (ветка main) и docs/ готовы; структуры monorepo и docker-compose ещё нет -->_
+- [x] Репозиторий (monorepo), структура, docker-compose (api, worker, postgres, redis, minio). _<!-- структура apps/{api,worker,frontend} + packages/shared; docker-compose.yml: postgres/redis/minio (+ minio-init бакета) рабочие и проверены, api/worker под профилем `app` (их Dockerfile — следующий пункт) -->_
 - [ ] Разделение образов: тонкий API и тяжёлый worker; тулинг uv/ruff/pnpm.
 - [ ] Каркас FastAPI + React (TanStack Query, shadcn/ui), базовый CI, линтеры.
 - [ ] Абстракции `LLMProvider` / `ImageProvider` (интерфейс + hosted-реализации).
