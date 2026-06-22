@@ -5,8 +5,9 @@ FastAPI-приложение (Python 3.12). **Тонкий образ** без `
 (Celery + Redis) и отдаёт прогресс через SSE.
 
 > `pyproject.toml` (пакет `marketplace-api` в uv-воркспейсе) и `Dockerfile` уже на месте.
-> Сейчас приложение — минимальный каркас с `GET /healthz`. Полный каркас (конфиг,
-> роутеры раздела 6, SSE, CRUD) добавляется на пункте Этапа 0 «Каркас FastAPI + React».
+> Каркас Этапа 0 готов: конфиг `config.py` (pydantic-settings), CORS, роутеры под
+> префиксом `/api` (`config.py`, `routers/`) + liveness `GET /healthz`. Бизнес-роутеры
+> раздела 6, SSE и CRUD добавляются на Этапах 1–5.
 
 ## Назначение
 - REST API (см. раздел 6 плана) + SSE-поток прогресса генерации.
