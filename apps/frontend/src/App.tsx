@@ -29,11 +29,7 @@ function App() {
                 status={health.data?.status}
               />
             </div>
-            <Button
-              variant="outline"
-              onClick={() => health.refetch()}
-              disabled={health.isFetching}
-            >
+            <Button variant="outline" onClick={() => health.refetch()} disabled={health.isFetching}>
               {health.isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Проверить снова
             </Button>
