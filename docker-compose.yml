@@ -2,9 +2,9 @@
 #
 # Профили:
 #   (по умолчанию)  — инфраструктура: postgres, redis, minio (+ инициализация бакета).
-#   app             — сервисы приложения: api, worker. Их образы/тулинг и Dockerfile
-#                     появятся на следующих пунктах Этапа 0 (см. docs/plan.md, раздел 7),
-#                     поэтому пока они под отдельным профилем и не стартуют по умолчанию.
+#   app             — сервисы приложения: api (тонкий образ) и worker (тяжёлый образ).
+#                     Их Dockerfile уже есть; держим под отдельным профилем, т.к. полный
+#                     каркас приложения (роутеры/стадии) добавляется на следующих пунктах.
 #
 # Запуск инфраструктуры:   docker compose up -d
 # Запуск всего (позже):    docker compose --profile app up -d --build
@@ -80,13 +80,14 @@ services:
     restart: "no"
 
   # --- Сервисы приложения (профиль app) ---------------------------------------
-  # Dockerfile и каркас появятся на следующих пунктах Этапа 0. До этого момента
-  # сборка профиля app невозможна — это ожидаемо.
+  # Образы собираются из КОРНЯ репозитория (нужны корневой uv.lock и packages/shared
+  # из uv-воркспейса); путь к Dockerfile задаётся явно.
 
   api:
     profiles: ["app"]
     build:
-      context: ./apps/api
+      context: .
+      dockerfile: apps/api/Dockerfile
     restart: unless-stopped
     depends_on:
       postgres:
@@ -108,7 +109,8 @@ services:
   worker:
     profiles: ["app"]
     build:
-      context: ./apps/worker
+      context: .
+      dockerfile: apps/worker/Dockerfile
     restart: unless-stopped
     depends_on:
       postgres:

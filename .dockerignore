@@ -1,0 +1,13 @@
+# Контекст сборки python-образов — корень репо. Не отправляем мусор в демон.
+.git/
+.env
+**/.venv/
+.venv/
+**/node_modules/
+node_modules/
+**/__pycache__/
+**/*.pyc
+**/.ruff_cache/
+**/.pytest_cache/
+**/dist/
+**/build/

@@ -1,0 +1,16 @@
+[project]
+name = "marketplace-shared"
+version = "0.1.0"
+description = "Общие контракты и провайдер-абстракции (Pydantic-схемы, LLMProvider/ImageProvider)."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.7",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/marketplace_shared"]

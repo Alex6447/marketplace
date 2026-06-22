@@ -1,0 +1,7 @@
+{
+  "name": "@marketplace/frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SPA-дашборд (React + TypeScript + Vite). Каркас и зависимости — следующий пункт Этапа 0."
+}

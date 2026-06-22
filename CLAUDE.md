@@ -51,7 +51,19 @@
 
 ## Команды
 
-> Раздел заполняется по мере появления кода (Этап 0). Ожидаемые команды:
-> - Backend (uv): `uv run uvicorn ...`, `uv run ruff check .`, `uv run pytest`
-> - Frontend (pnpm): `pnpm dev`, `pnpm build`, `pnpm lint`
-> - Инфраструктура: `docker-compose up -d`
+> Раздел дополняется по мере появления кода. Актуально на сейчас (все — из корня репо).
+
+**Python (uv-воркспейс: `apps/api`, `apps/worker`, `packages/shared`):**
+- `uv sync` — поставить все пакеты воркспейса + dev-группу (ruff).
+- `uv run ruff check .` — линт всего Python-кода.
+- `uv run uvicorn marketplace_api.main:app --reload` — запустить тонкий API локально.
+- `uv run celery -A marketplace_worker.celery_app:app worker` — запустить воркер.
+- `uv sync --package marketplace-api` — окружение только тонкого API.
+
+**Frontend (pnpm-воркспейс):** `pnpm install` (каркас Vite/React — следующий пункт Этапа 0).
+
+**Образы (контекст сборки — корень репо):**
+- `docker build -f apps/api/Dockerfile -t marketplace-api .` — тонкий образ API.
+- `docker build -f apps/worker/Dockerfile -t marketplace-worker .` — тяжёлый образ воркера.
+
+**Инфраструктура:** `docker compose up -d` (postgres/redis/minio); `docker compose --profile app up -d --build` (+ api/worker).

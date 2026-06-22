@@ -1,0 +1,6 @@
+# pnpm-воркспейс фронтенда. Полный каркас Vite + React + TanStack Query + shadcn/ui
+# и линтеры — следующий пункт Этапа 0 «Каркас FastAPI + React». Сейчас — только
+# структура воркспейса и тулинг pnpm.
+packages:
+  - "apps/frontend"
+  - "packages/*"

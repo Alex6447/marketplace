@@ -1,0 +1,30 @@
+# Корень uv-воркспейса (virtual root — сам по себе не пакет).
+# Объединяет Python-пакеты монорепо в один lock и общую конфигурацию ruff:
+#   apps/api        — тонкий сервис (marketplace-api), без torch/CUDA;
+#   apps/worker     — тяжёлый воркер (marketplace-worker), стадии пайплайна;
+#   packages/shared — общий код (marketplace-shared): контракты и провайдер-абстракции.
+#
+# Команды (с хост-машины):
+#   uv sync                      — поставить все пакеты воркспейса + dev-группу;
+#   uv run ruff check .          — линт всего Python-кода;
+#   uv sync --package marketplace-api   — окружение только тонкого API.
+
+[tool.uv.workspace]
+members = ["apps/api", "apps/worker", "packages/shared"]
+
+[tool.uv.sources]
+marketplace-shared = { workspace = true }
+
+[dependency-groups]
+dev = ["ruff>=0.6"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["apps/api/src", "apps/worker/src", "packages/shared/src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["marketplace_shared", "marketplace_api", "marketplace_worker"]

@@ -276,7 +276,7 @@ GET    /jobs/{id}/events               прогресс генерации (SSE-
 
 ### Этап 0 — Подготовка (1 неделя)
 - [x] Репозиторий (monorepo), структура, docker-compose (api, worker, postgres, redis, minio). _<!-- структура apps/{api,worker,frontend} + packages/shared; docker-compose.yml: postgres/redis/minio (+ minio-init бакета) рабочие и проверены, api/worker под профилем `app` (их Dockerfile — следующий пункт) -->_
-- [ ] Разделение образов: тонкий API и тяжёлый worker; тулинг uv/ruff/pnpm.
+- [x] Разделение образов: тонкий API и тяжёлый worker; тулинг uv/ruff/pnpm. _<!-- uv-воркспейс (apps/api, apps/worker, packages/shared) + общий ruff; два Dockerfile (тонкий API без torch / тяжёлый worker, ML/Playwright — опц. extra render/local); pnpm-воркспейс для apps/frontend. Образы собираются из корня репо, api проверен (/healthz → 200). Полный каркас app — следующий пункт -->_
 - [ ] Каркас FastAPI + React (TanStack Query, shadcn/ui), базовый CI, линтеры.
 - [ ] Абстракции `LLMProvider` / `ImageProvider` (интерфейс + hosted-реализации).
 - [ ] Подключение Claude API + tool-use/JSON-schema, валидация Pydantic.

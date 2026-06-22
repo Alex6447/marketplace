@@ -7,5 +7,10 @@
 - **Провайдер-абстракции** `LLMProvider` / `ImageProvider` — переключение hosted ⇄ local
   без правки пайплайна (раздел 4.1 плана).
 
-> Наполняется на пунктах Этапа 0 «Абстракции LLMProvider / ImageProvider» и далее
-> ([docs/plan.md](../../docs/plan.md), раздел 7). Сейчас — каталог-заглушка.
+> `pyproject.toml` (пакет `marketplace-shared` в uv-воркспейсе) на месте; пакет
+> подключён зависимостью к `api` и `worker`. Содержимым (схемы, абстракции)
+> наполняется на пунктах Этапа 0 «Абстракции LLMProvider / ImageProvider» и далее
+> ([docs/plan.md](../../docs/plan.md), раздел 7). Сейчас — только версия пакета.
+
+## Структура
+- Код: `src/marketplace_shared/` (пакет `marketplace_shared`).
