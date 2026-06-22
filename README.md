@@ -13,6 +13,9 @@
 ![Celery](https://img.shields.io/badge/Celery-Redis-37814A?logo=celery&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 ![License](https://img.shields.io/badge/license-proprietary-lightgrey)
+![Status](https://img.shields.io/badge/status-🚧%20в%20разработке-orange)
+
+> 🚧 **Проект в активной разработке.** README описывает целевой продукт; часть функциональности и команд из раздела «Быстрый старт» появится по мере реализации (см. план в [docs/plan.md](docs/plan.md)).
 
 </div>
 
