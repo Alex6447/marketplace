@@ -60,6 +60,12 @@
 - `uv run celery -A marketplace_worker.celery_app:app worker` — запустить воркер.
 - `uv sync --package marketplace-api` — окружение только тонкого API.
 
+**Миграции БД (Alembic, конфиг в корне `alembic.ini`; URL берётся из `DATABASE_URL`):**
+- `uv run alembic upgrade head` — применить миграции к БД.
+- `uv run alembic revision --autogenerate -m "описание"` — сгенерировать миграцию по ORM-моделям (`marketplace_shared.db.models`).
+- `uv run alembic downgrade -1` — откатить на одну ревизию.
+- `uv run alembic check` — проверить, что модели соответствуют схеме БД.
+
 **Frontend (pnpm-воркспейс):** `pnpm install` (каркас Vite/React — следующий пункт Этапа 0).
 
 **Образы (контекст сборки — корень репо):**
