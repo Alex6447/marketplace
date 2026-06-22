@@ -10,6 +10,11 @@ dependencies = [
     # Hosted LLM-провайдер (AnthropicLLMProvider). Чистый Python, лёгкий —
     # допустимо и в тонком API-образе. Версия — с поддержкой output_config/adaptive.
     "anthropic>=0.69",
+    # Hosted image-провайдер (GeminiImageProvider) — официальный SDK Gemini.
+    # Чистый Python; модель gemini-2.5-flash-image (editing «сохрани товар, смени фон»).
+    "google-genai>=1.0",
+    # Скачивание изображений по presigned-URL (MinIO/S3) во входах image-провайдера.
+    "httpx>=0.27",
 ]
 
 [build-system]
