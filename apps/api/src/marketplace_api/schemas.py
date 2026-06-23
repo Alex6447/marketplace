@@ -117,9 +117,16 @@ class CardSetRead(BaseModel):
 # --- Card image generation (стадия [5]) -------------------------------------
 
 
+CardImageMode = Literal["edit", "composite"]
+
+
 class CardImageGenerateRequest(BaseModel):
     """Параметры запуска генерации изображения карточки (все опциональны)."""
 
+    #: Режим стадии [5]: "edit" — editing-модель (товар сохраняет провайдер),
+    #: "composite" — gold standard: фон генерируется, вырез товара (стадия [4])
+    #: накладывается 1:1. Композитинг требует построенной маски (стадия [4]).
+    mode: CardImageMode = "edit"
     #: Переопределить модель image-провайдера (иначе — дефолт выбранного провайдера).
     model: str | None = None
     #: Seed для воспроизводимости (если провайдер поддерживает).

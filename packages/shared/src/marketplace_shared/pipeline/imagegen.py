@@ -13,13 +13,27 @@ Qwen-Image-Edit): «оставь товар, измени фон/сцену» с
 
 Текст на карточку здесь НЕ наносится: его кладёт отдельный детерминированный движок
 (стадия [6]). Поэтому инструкция просит модель не добавлять надписи поверх сцены.
+
+Помимо основного режима (editing) поддержан **композитинг (gold standard)**: фон/сцена
+генерируется отдельно (:func:`generate_card_background`), а вырез товара из стадии [4]
+накладывается поверх 1:1 (:func:`composite_product_on_background`) — пиксели товара
+остаются ровно как на оригинале. Это самый надёжный по сохранению товара путь.
 """
 
 from __future__ import annotations
 
+import io
+
+from PIL import Image
+
 from marketplace_shared.pipeline.concepts import CardConcept
 from marketplace_shared.providers.base import ImageProvider
-from marketplace_shared.providers.contracts import ImageEditRequest, ImageRef, ImageResult
+from marketplace_shared.providers.contracts import (
+    ImageEditRequest,
+    ImageGenRequest,
+    ImageRef,
+    ImageResult,
+)
 
 # Инвариант проекта: товар сохраняется без искажений. Этот текст открывает каждую
 # инструкцию редактирования — модель должна менять только фон/сцену вокруг товара.
@@ -88,3 +102,80 @@ async def generate_card_image(
     )
     result = await provider.edit(request)
     return result, instruction
+
+
+# --------------------------------------------------------------------------- #
+# Композитинг (gold standard): фон генерируется, товар вставляется 1:1
+# --------------------------------------------------------------------------- #
+
+# Промт генерации фона описывает ТОЛЬКО сцену — товар вставляется отдельно (1:1),
+# поэтому модель не должна рисовать ни товар, ни текст.
+_BACKGROUND_ONLY = (
+    "Сгенерируй только фон/сцену для карточки товара, без самого товара и без людей "
+    "в центре кадра — оставь центральную зону свободной под товар, который будет "
+    "вставлен отдельно. Не добавляй никакого текста, надписей и логотипов."
+)
+
+
+def build_background_prompt(concept: CardConcept, *, brand_style: str | None = None) -> str:
+    """Собрать промт генерации фона/сцены из концепции карточки (чистая функция).
+
+    В отличие от :func:`build_edit_instruction`, описывает только окружение: сам товар
+    в композитинге не генерируется, а берётся вырезом из стадии [4] и вставляется 1:1.
+    """
+    lines = []
+    if concept.background:
+        lines.append(f"Фон и сцена: {concept.background}.")
+    if concept.composition:
+        lines.append(f"Композиция сцены: {concept.composition}.")
+    if concept.color_palette:
+        lines.append(f"Цветовая палитра: {', '.join(concept.color_palette)}.")
+    if brand_style:
+        lines.append(f"Стиль бренда: {brand_style}.")
+    lines.append(_BACKGROUND_ONLY)
+    return " ".join(lines)
+
+
+def composite_product_on_background(background_png: bytes, cutout_png: bytes) -> bytes:
+    """Наложить вырез товара поверх сгенерированного фона (товар = 1:1 пиксели).
+
+    Чистая, детерминированная: фон масштабируется под размер выреза, затем вырез
+    (RGBA с прозрачным фоном из стадии [4]) накладывается по альфа-каналу — пиксели
+    товара остаются неизменными. Результат — непрозрачный PNG (RGB) под маркетплейсы.
+    """
+    foreground = Image.open(io.BytesIO(cutout_png)).convert("RGBA")
+    background = Image.open(io.BytesIO(background_png)).convert("RGBA")
+    if background.size != foreground.size:
+        background = background.resize(foreground.size)
+    composed = Image.alpha_composite(background, foreground).convert("RGB")
+    buf = io.BytesIO()
+    composed.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+async def generate_card_background(
+    provider: ImageProvider,
+    concept: CardConcept,
+    *,
+    references: list[ImageRef] | None = None,
+    brand_style: str | None = None,
+    model: str | None = None,
+    size: str | None = None,
+    seed: int | None = None,
+) -> tuple[ImageResult, str]:
+    """Сгенерировать фон/сцену карточки (шаг композитинга стадии [5]).
+
+    Возвращает результат image-провайдера и собранный промт (для трейсинга и записи
+    в ``CardVersion.gen_params_json``). Сам композитинг выполняет
+    :func:`composite_product_on_background`.
+    """
+    prompt = build_background_prompt(concept, brand_style=brand_style)
+    request = ImageGenRequest(
+        prompt=prompt,
+        references=references or [],
+        model=model,
+        size=size,
+        seed=seed,
+    )
+    result = await provider.generate(request)
+    return result, prompt

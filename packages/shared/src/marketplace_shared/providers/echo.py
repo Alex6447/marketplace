@@ -12,8 +12,11 @@
 
 from __future__ import annotations
 
+import io
 import json
 from typing import Any
+
+from PIL import Image
 
 from .base import ImageProvider, LLMProvider
 from .contracts import (
@@ -110,7 +113,7 @@ class EchoLLMProvider(LLMProvider):
 
 
 class EchoImageProvider(ImageProvider):
-    """Image-заглушка: `edit` сохраняет товар 1:1, `generate` отдаёт echo-ссылку."""
+    """Image-заглушка: `edit` сохраняет товар 1:1, `generate` отдаёт сплошной фон."""
 
     name = "echo"
 
@@ -128,7 +131,12 @@ class EchoImageProvider(ImageProvider):
         )
 
     async def generate(self, request: ImageGenRequest) -> ImageResult:
-        ref = ImageRef(url=f"echo://generated?seed={request.seed}")
+        # Детерминированный плейсхолдер-фон реальными байтами: позволяет гонять
+        # композитинг стадии [5] офлайн (вырез товара кладётся поверх этого фона).
+        width, height = _parse_size(request.size)
+        seed = request.seed or 0
+        color = (210 - seed % 40, 214 - seed % 30, 222 - seed % 20)  # светлый нейтральный
+        ref = ImageRef(data=_solid_png(width, height, color), media_type="image/png")
         return ImageResult(
             image=ref,
             provider=self.name,
@@ -136,3 +144,21 @@ class EchoImageProvider(ImageProvider):
             usage=Usage(extra={"images": 1}),
             raw={"echo": True, "prompt": request.prompt},
         )
+
+
+def _parse_size(size: str | None, *, default: int = 1024) -> tuple[int, int]:
+    """Разобрать строку размера вида "ШxВ" (например "1024x768"); иначе — квадрат default."""
+    if size:
+        try:
+            w, h = (int(part) for part in size.lower().split("x", 1))
+            return w, h
+        except ValueError:
+            pass
+    return default, default
+
+
+def _solid_png(width: int, height: int, color: tuple[int, int, int]) -> bytes:
+    """Сплошной PNG заданного размера и цвета (плейсхолдер-фон echo-провайдера)."""
+    buf = io.BytesIO()
+    Image.new("RGB", (width, height), color).save(buf, format="PNG")
+    return buf.getvalue()
