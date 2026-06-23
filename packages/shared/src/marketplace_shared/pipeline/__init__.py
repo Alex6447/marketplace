@@ -8,6 +8,7 @@
 
 Стадия [2] «генерация идей» — в :mod:`marketplace_shared.pipeline.ideas`.
 Стадия [3] «визуальные концепции» — в :mod:`marketplace_shared.pipeline.concepts`.
+Стадия [5] «генерация изображения» — в :mod:`marketplace_shared.pipeline.imagegen`.
 """
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ from .ideas import (
     build_ideas_request,
     generate_ideas,
 )
+from .imagegen import build_edit_instruction, generate_card_image
 
 __all__ = [
     # стадия [2]
@@ -40,4 +42,7 @@ __all__ = [
     "CardSetConcepts",
     "build_concepts_request",
     "generate_concepts",
+    # стадия [5]
+    "build_edit_instruction",
+    "generate_card_image",
 ]

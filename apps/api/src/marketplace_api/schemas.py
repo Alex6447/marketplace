@@ -114,6 +114,38 @@ class CardSetRead(BaseModel):
     cards: list[CardRead]
 
 
+# --- Card image generation (стадия [5]) -------------------------------------
+
+
+class CardImageGenerateRequest(BaseModel):
+    """Параметры запуска генерации изображения карточки (все опциональны)."""
+
+    #: Переопределить модель image-провайдера (иначе — дефолт выбранного провайдера).
+    model: str | None = None
+    #: Seed для воспроизводимости (если провайдер поддерживает).
+    seed: int | None = None
+    #: Целевой размер, напр. "1024x1024" (если провайдер поддерживает).
+    size: str | None = None
+    #: Использовать референс-ассеты товара как референсы сцены/стиля.
+    use_references: bool = True
+
+
+class CardVersionRead(BaseModel):
+    """Версия карточки — результат стадии [5] (изображение до наложения текста)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    card_id: uuid.UUID
+    version_no: int
+    image_s3_key: str | None
+    final_s3_key: str | None
+    gen_params_json: dict[str, Any]
+    created_at: datetime
+    #: Presigned-ссылка на сгенерированное изображение (генерируется на лету).
+    image_url: str | None = None
+
+
 # --- ProductAsset -----------------------------------------------------------
 
 AssetType = Literal["photo", "reference"]

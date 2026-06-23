@@ -55,6 +55,16 @@ class S3Storage:
         extra = {"ContentType": content_type} if content_type else {}
         self._client.put_object(Bucket=self._bucket, Key=key, Body=data, **extra)
 
+    def get_object(self, key: str) -> bytes:
+        """Прочитать объект по ключу `key` целиком в память.
+
+        Нужен стадии [5]: фото товара читается из хранилища и передаётся
+        image-провайдеру inline-байтами (без presigned-round-trip), а результат
+        сохраняется обратно. Артефакты карточек — небольшие изображения.
+        """
+        response = self._client.get_object(Bucket=self._bucket, Key=key)
+        return response["Body"].read()
+
     def presigned_get_url(self, key: str, expires: int = DEFAULT_URL_EXPIRES) -> str:
         """Сгенерировать presigned-URL для скачивания объекта по ключу `key`."""
         return self._client.generate_presigned_url(
