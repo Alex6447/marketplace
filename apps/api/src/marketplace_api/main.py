@@ -1,16 +1,25 @@
 """Точка входа FastAPI — тонкий API-сервис.
 
-Каркас Этапа 0: конфиг через pydantic-settings, CORS для фронтенд-дашборда,
-роутеры под префиксом /api. Бизнес-эндпоинты (проекты, товары, карточки, jobs/SSE
-из docs/plan.md, раздел 6) и CRUD добавляются на Этапах 1–5.
+Конфиг через pydantic-settings, CORS для фронтенд-дашборда, роутеры под префиксом
+/api. CRUD проектов/товаров/ассетов (Этап 1) подключён; стадии генерации и jobs/SSE
+(docs/plan.md, раздел 6) добавляются на Этапах 2–5.
 """
+
+import asyncio
+import sys
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from marketplace_api import __version__
 from marketplace_api.config import get_settings
-from marketplace_api.routers import health
+from marketplace_api.routers import assets, health, products, projects
+
+# Windows: async-драйвер psycopg несовместим с ProactorEventLoop (дефолт на Windows).
+# Переключаем политику на SelectorEventLoop ДО создания цикла uvicorn'ом. На Linux
+# (Docker) условие ложно — no-op. См. заметку к модели данных в docs/plan.md (Этап 1).
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 settings = get_settings()
 
@@ -26,6 +35,9 @@ app.add_middleware(
 
 # Бизнес-роутеры — под префиксом /api.
 app.include_router(health.router, prefix="/api")
+app.include_router(projects.router, prefix="/api")
+app.include_router(products.router, prefix="/api")
+app.include_router(assets.router, prefix="/api")
 
 
 @app.get("/healthz")
