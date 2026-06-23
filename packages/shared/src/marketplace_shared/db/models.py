@@ -13,7 +13,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from sqlalchemy import ForeignKey, Integer, String, Text
+from sqlalchemy import ForeignKey, Integer, SmallInteger, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -199,6 +199,10 @@ class Job(Base, TimestampMixin):
     type: Mapped[str] = mapped_column(String(64), nullable=False)
     #: Статус: pending/running/success/failure/retry.
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending", index=True)
+    #: Прогресс задачи 0–100 (для SSE-потока стадии генерации, docs/plan.md, раздел 6).
+    progress: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
+    #: Текущая стадия задачи (человекочитаемая метка для UI/SSE), напр. "image_gen".
+    stage: Mapped[str | None] = mapped_column(String(64), nullable=True)
     payload_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     result_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)

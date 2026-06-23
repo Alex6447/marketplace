@@ -137,6 +137,32 @@ class CardImageGenerateRequest(BaseModel):
     use_references: bool = True
 
 
+class CardSetGenerateRequest(CardImageGenerateRequest):
+    """Параметры генерации изображений для всего набора карточек (стадия [5]).
+
+    Наследует поля одиночной генерации; ``prepare`` добавляет перед композитингом
+    стадию [4] (маска товара) — тогда каждая карточка идёт цепочкой matting→image.
+    """
+
+    #: Сначала построить маску товара (стадия [4]), затем композитинг (chain).
+    prepare: bool = False
+
+
+class JobRead(BaseModel):
+    """Фоновая задача генерации (таблица Job) — для статуса и SSE-прогресса."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    type: str
+    status: str
+    progress: int
+    stage: str | None
+    result_json: dict[str, Any] | None
+    error: str | None
+    created_at: datetime
+
+
 class CardVersionRead(BaseModel):
     """Версия карточки — результат стадии [5] (изображение до наложения текста)."""
 

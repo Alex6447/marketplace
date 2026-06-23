@@ -16,7 +16,14 @@ from marketplace_shared.db.models import (
     ProductAsset,
     Project,
 )
-from marketplace_shared.db.session import get_engine, get_session, get_sessionmaker
+from marketplace_shared.db.session import (
+    get_engine,
+    get_session,
+    get_sessionmaker,
+    get_sync_engine,
+    get_sync_sessionmaker,
+    sync_session_scope,
+)
 
 __all__ = [
     "Base",
@@ -33,4 +40,7 @@ __all__ = [
     "get_engine",
     "get_sessionmaker",
     "get_session",
+    "get_sync_engine",
+    "get_sync_sessionmaker",
+    "sync_session_scope",
 ]

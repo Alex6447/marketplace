@@ -19,15 +19,10 @@ from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from marketplace_api.schemas import AssetType, MaskGenerateRequest, ProductAssetRead
-from marketplace_shared.db import Product, ProductAsset, get_session
-from marketplace_shared.pipeline import prepare_asset
-from marketplace_shared.providers import ImageRef, get_matting_provider
-from marketplace_shared.providers.errors import (
-    ProviderError,
-    ProviderNotConfigured,
-    ProviderNotImplemented,
-)
+from marketplace_api.enqueue import enqueue_asset_matting
+from marketplace_api.schemas import AssetType, JobRead, MaskGenerateRequest, ProductAssetRead
+from marketplace_shared import jobs as job_const
+from marketplace_shared.db import Job, Product, ProductAsset, get_session
 from marketplace_shared.storage import S3Storage, get_storage
 
 router = APIRouter(prefix="/products/{product_id}/assets", tags=["assets"])
@@ -43,11 +38,6 @@ def _object_key(product_id: uuid.UUID, asset_id: uuid.UUID, filename: str | None
     """Сформировать ключ объекта в бакете, сохранив расширение исходного файла."""
     suffix = PurePosixPath(filename).suffix if filename else ""
     return f"products/{product_id}/assets/{asset_id}{suffix}"
-
-
-def _mask_key(product_id: uuid.UUID, asset_id: uuid.UUID) -> str:
-    """Ключ маски товара (стадия [4])."""
-    return f"products/{product_id}/assets/{asset_id}.mask.png"
 
 
 def _cutout_key(mask_key: str) -> str:
@@ -117,19 +107,20 @@ async def list_assets(
     return await run_in_threadpool(lambda: [_with_url(a, storage) for a in assets])
 
 
-@router.post("/{asset_id}/mask", response_model=ProductAssetRead)
+@router.post(
+    "/{asset_id}/mask", response_model=JobRead, status_code=status.HTTP_202_ACCEPTED
+)
 async def generate_asset_mask(
     product_id: uuid.UUID,
     asset_id: uuid.UUID,
     payload: MaskGenerateRequest,
     session: SessionDep,
-    storage: StorageDep,
-) -> ProductAssetRead:
-    """Удалить фон и построить маску товара для фото (стадия [4]).
+) -> JobRead:
+    """Поставить удаление фона и построение маски товара в очередь (стадия [4]).
 
-    Маска (и вырез с прозрачным фоном) сохраняются в хранилище, ключ маски — в
-    ``ProductAsset.mask_s3_key``. Только для фото товара (``type=photo``).
-    Идемпотентность: если маска уже есть и ``force`` не задан — 409.
+    Только для фото (``type=photo``). Идемпотентность: если маска уже есть и ``force``
+    не задан — 409. Сам matting выполняет worker; результат пишется в
+    ``ProductAsset.mask_s3_key``. Возвращает задачу (Job).
     """
     asset = await session.get(ProductAsset, asset_id)
     if asset is None or asset.product_id != product_id:
@@ -145,35 +136,14 @@ async def generate_asset_mask(
             detail="Маска уже построена; передайте force=true для пересборки",
         )
 
-    photo_bytes = await run_in_threadpool(storage.get_object, asset.s3_key)
-    image = ImageRef(data=photo_bytes, media_type="image/png")
-    try:
-        provider = get_matting_provider()
-        result = await prepare_asset(provider, image, model=payload.model)
-    except ProviderNotImplemented as exc:
-        raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail=f"Matting-провайдер не реализован: {exc}",
-        ) from exc
-    except ProviderNotConfigured as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Matting-провайдер не сконфигурирован: {exc}",
-        ) from exc
-    except ProviderError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Ошибка удаления фона: {exc}",
-        ) from exc
-
-    mask_key = _mask_key(product_id, asset_id)
-    await run_in_threadpool(storage.put_object, mask_key, result.mask.data, "image/png")
-    if result.cutout is not None and result.cutout.data is not None:
-        await run_in_threadpool(
-            storage.put_object, _cutout_key(mask_key), result.cutout.data, "image/png"
-        )
-
-    asset.mask_s3_key = mask_key
+    job = Job(
+        type=job_const.JOB_ASSET_MATTING,
+        status=job_const.JOB_PENDING,
+        payload_json={"asset_id": str(asset_id), "model": payload.model},
+    )
+    session.add(job)
     await session.commit()
-    await session.refresh(asset)
-    return await run_in_threadpool(_with_url, asset, storage)
+    await session.refresh(job)
+
+    enqueue_asset_matting(job.id, asset_id, model=payload.model)
+    return JobRead.model_validate(job)
