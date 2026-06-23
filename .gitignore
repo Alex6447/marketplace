@@ -226,5 +226,9 @@ apps/frontend/.vite/
 npm-debug.log*
 pnpm-debug.log*
 
+# Каталог исходников фронта src/lib попадает под Python-шаблон `lib/` выше
+# (он не заякорен и матчит на любой глубине) — явно возвращаем его в трекинг.
+!apps/frontend/src/lib/
+
 # --- Docker / локальные данные ---
 .docker-data/
