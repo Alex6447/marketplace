@@ -42,6 +42,12 @@ class ProviderSettings(BaseSettings):
     gemini_api_key: str | None = None
     bfl_api_key: str | None = None  # Black Forest Labs — Flux.1 Kontext
 
+    # --- Matting (стадия [4] — удаление фона/маска) ---
+    #: 'simple' — офлайн-кеинг по цвету фона (Pillow, без GPU). Локальные модели
+    #: 'birefnet'/'sam2' подключаются на Этапе 6.
+    matting_provider: str = "simple"
+    matting_model: str | None = None
+
 
 @lru_cache
 def get_provider_settings() -> ProviderSettings:

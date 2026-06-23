@@ -12,14 +12,28 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from .base import ImageProvider, LLMProvider
+from .base import ImageProvider, LLMProvider, MattingProvider
 from .config import ProviderSettings, get_provider_settings
 from .echo import EchoImageProvider, EchoLLMProvider
-from .errors import ProviderNotConfigured
+from .errors import ProviderNotConfigured, ProviderNotImplemented
 from .hosted import AnthropicLLMProvider, GeminiImageProvider
+from .matting import SimpleMattingProvider
 
 LLMBuilder = Callable[[ProviderSettings], LLMProvider]
 ImageBuilder = Callable[[ProviderSettings], ImageProvider]
+MattingBuilder = Callable[[ProviderSettings], MattingProvider]
+
+
+def _local_matting_not_implemented(name: str) -> MattingBuilder:
+    """Builder-заглушка локальной matting-модели (BiRefNet/SAM2) — наполняется на Этапе 6."""
+
+    def _build(_settings: ProviderSettings) -> MattingProvider:
+        raise ProviderNotImplemented(
+            f"Локальный matting-провайдер {name!r} (BiRefNet/SAM2) — Этап 6; "
+            "для MVP используйте MATTING_PROVIDER='simple'"
+        )
+
+    return _build
 
 
 _LLM_BUILDERS: dict[str, LLMBuilder] = {
@@ -32,6 +46,12 @@ _IMAGE_BUILDERS: dict[str, ImageBuilder] = {
     "gemini": lambda s: GeminiImageProvider(api_key=s.gemini_api_key, model=s.image_model),
 }
 
+_MATTING_BUILDERS: dict[str, MattingBuilder] = {
+    "simple": lambda s: SimpleMattingProvider(model=s.matting_model),
+    "birefnet": _local_matting_not_implemented("birefnet"),
+    "sam2": _local_matting_not_implemented("sam2"),
+}
+
 
 def available_llm_providers() -> list[str]:
     """Имена зарегистрированных LLM-провайдеров."""
@@ -41,6 +61,11 @@ def available_llm_providers() -> list[str]:
 def available_image_providers() -> list[str]:
     """Имена зарегистрированных image-провайдеров."""
     return sorted(_IMAGE_BUILDERS)
+
+
+def available_matting_providers() -> list[str]:
+    """Имена зарегистрированных matting-провайдеров."""
+    return sorted(_MATTING_BUILDERS)
 
 
 def get_llm_provider(settings: ProviderSettings | None = None) -> LLMProvider:
@@ -65,5 +90,18 @@ def get_image_provider(settings: ProviderSettings | None = None) -> ImageProvide
         raise ProviderNotConfigured(
             f"Неизвестный IMAGE_PROVIDER={settings.image_provider!r}; "
             f"доступны: {available_image_providers()}"
+        ) from None
+    return builder(settings)
+
+
+def get_matting_provider(settings: ProviderSettings | None = None) -> MattingProvider:
+    """Создать matting-провайдера согласно конфигурации (`MATTING_PROVIDER`)."""
+    settings = settings or get_provider_settings()
+    try:
+        builder = _MATTING_BUILDERS[settings.matting_provider]
+    except KeyError:
+        raise ProviderNotConfigured(
+            f"Неизвестный MATTING_PROVIDER={settings.matting_provider!r}; "
+            f"доступны: {available_matting_providers()}"
         ) from None
     return builder(settings)

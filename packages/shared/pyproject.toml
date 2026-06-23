@@ -26,6 +26,9 @@ dependencies = [
     # Клиент S3-совместимого хранилища (MinIO) — загрузка фото/референсов товара и
     # presigned-URL. Чистый Python, общий для API (загрузка) и worker (артефакты стадий).
     "boto3>=1.34",
+    # Обработка изображений: matting-стадия [4] (SimpleMattingProvider — кеинг по фону)
+    # и fallback наложения текста [6]. Лёгкая (не torch) — допустима и в тонком API-образе.
+    "pillow>=10.3",
 ]
 
 [build-system]

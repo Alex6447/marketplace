@@ -20,6 +20,8 @@ from .contracts import (
     ImageResult,
     LLMRequest,
     LLMResponse,
+    MattingRequest,
+    MattingResult,
 )
 
 
@@ -48,4 +50,15 @@ class ImageProvider(ABC):
     @abstractmethod
     async def generate(self, request: ImageGenRequest) -> ImageResult:
         """Генерация изображения с нуля (например, фон/сцена для композитинга)."""
+        raise NotImplementedError
+
+
+class MattingProvider(ABC):
+    """Удаление фона и построение маски товара (стадия [4])."""
+
+    name: ClassVar[str]
+
+    @abstractmethod
+    async def remove_background(self, request: MattingRequest) -> MattingResult:
+        """Вырезать товар: вернуть маску товара и (опц.) вырез с прозрачным фоном."""
         raise NotImplementedError

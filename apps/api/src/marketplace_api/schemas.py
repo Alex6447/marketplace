@@ -154,8 +154,8 @@ AssetType = Literal["photo", "reference"]
 class ProductAssetRead(BaseModel):
     """Файл товара (фото/референс) в ответе API.
 
-    `url` — presigned-ссылка на скачивание из хранилища (живёт ограниченное время),
-    генерируется на лету, в БД не хранится.
+    `url`/`mask_url`/`cutout_url` — presigned-ссылки на скачивание из хранилища
+    (живут ограниченное время), генерируются на лету, в БД не хранятся.
     """
 
     model_config = ConfigDict(from_attributes=True)
@@ -166,3 +166,16 @@ class ProductAssetRead(BaseModel):
     s3_key: str
     mask_s3_key: str | None
     url: str | None = None
+    #: Presigned-ссылка на маску товара (стадия [4]); None, пока маска не построена.
+    mask_url: str | None = None
+    #: Presigned-ссылка на вырез с прозрачным фоном (сосед маски по ключу).
+    cutout_url: str | None = None
+
+
+class MaskGenerateRequest(BaseModel):
+    """Параметры запуска подготовки ассета — стадия [4] (все опциональны)."""
+
+    #: Переопределить модель matting-провайдера (иначе — дефолт провайдера).
+    model: str | None = None
+    #: Перестроить маску, даже если она уже есть (иначе вернётся 409).
+    force: bool = False

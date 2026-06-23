@@ -12,7 +12,7 @@
 
 from __future__ import annotations
 
-from .base import ImageProvider, LLMProvider
+from .base import ImageProvider, LLMProvider, MattingProvider
 from .config import ProviderSettings, get_provider_settings
 from .contracts import (
     ImageEditRequest,
@@ -22,22 +22,28 @@ from .contracts import (
     LLMMessage,
     LLMRequest,
     LLMResponse,
+    MattingRequest,
+    MattingResult,
     Usage,
 )
 from .echo import EchoImageProvider, EchoLLMProvider
 from .errors import ProviderError, ProviderNotConfigured, ProviderNotImplemented
 from .hosted import AnthropicLLMProvider, GeminiImageProvider
+from .matting import SimpleMattingProvider
 from .registry import (
     available_image_providers,
     available_llm_providers,
+    available_matting_providers,
     get_image_provider,
     get_llm_provider,
+    get_matting_provider,
 )
 
 __all__ = [
     # интерфейсы
     "LLMProvider",
     "ImageProvider",
+    "MattingProvider",
     # контракты
     "LLMMessage",
     "LLMRequest",
@@ -46,6 +52,8 @@ __all__ = [
     "ImageEditRequest",
     "ImageGenRequest",
     "ImageResult",
+    "MattingRequest",
+    "MattingResult",
     "Usage",
     # конфигурация
     "ProviderSettings",
@@ -53,13 +61,16 @@ __all__ = [
     # фабрики/реестр
     "get_llm_provider",
     "get_image_provider",
+    "get_matting_provider",
     "available_llm_providers",
     "available_image_providers",
+    "available_matting_providers",
     # реализации
     "EchoLLMProvider",
     "EchoImageProvider",
     "AnthropicLLMProvider",
     "GeminiImageProvider",
+    "SimpleMattingProvider",
     # ошибки
     "ProviderError",
     "ProviderNotConfigured",

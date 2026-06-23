@@ -121,3 +121,32 @@ class ImageResult(BaseModel):
     model: str
     usage: Usage = Field(default_factory=Usage)
     raw: dict[str, Any] | None = None
+
+
+# --------------------------------------------------------------------------- #
+# Matting (стадия [4] — удаление фона / маска товара)
+# --------------------------------------------------------------------------- #
+
+
+class MattingRequest(BaseModel):
+    """Удаление фона и построение маски товара (стадия [4], BiRefNet/SAM2/простой кеинг).
+
+    `image` — исходное фото товара. Результат — маска товара (и вырез с прозрачным
+    фоном), которые использует стадия [5] (композитинг) и QA (стадия [7]).
+    """
+
+    image: ImageRef
+    model: str | None = None
+
+
+class MattingResult(BaseModel):
+    """Результат matting: маска товара и (опц.) вырез с прозрачным фоном."""
+
+    #: Маска товара: grayscale PNG, белое (255) — товар, чёрное (0) — фон.
+    mask: ImageRef
+    #: Вырез товара: RGBA PNG с прозрачным фоном (для композитинга стадии [5]).
+    cutout: ImageRef | None = None
+    provider: str
+    model: str
+    usage: Usage = Field(default_factory=Usage)
+    raw: dict[str, Any] | None = None
