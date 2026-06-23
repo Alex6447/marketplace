@@ -81,6 +81,39 @@ class IdeasRead(BaseModel):
     ideas: dict[str, Any]
 
 
+# --- Concepts (стадия [3]) --------------------------------------------------
+
+
+class ConceptsGenerateRequest(BaseModel):
+    """Параметры запуска генерации визуальных концепций (все опциональны)."""
+
+    #: Переопределить модель LLM (иначе — дефолт выбранного провайдера).
+    model: str | None = None
+    #: Перегенерировать, даже если концепции уже есть (иначе вернётся 409).
+    force: bool = False
+
+
+class CardRead(BaseModel):
+    """Карточка набора с визуальной концепцией (результат стадии [3])."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    role: str
+    order: int
+    #: Структура соответствует `marketplace_shared.pipeline.CardConcept`.
+    concept: dict[str, Any] | None = Field(default=None, validation_alias="concept_json")
+
+
+class CardSetRead(BaseModel):
+    """Набор карточек товара с концепциями (результат стадии [3])."""
+
+    id: uuid.UUID
+    product_id: uuid.UUID
+    status: str
+    cards: list[CardRead]
+
+
 # --- ProductAsset -----------------------------------------------------------
 
 AssetType = Literal["photo", "reference"]

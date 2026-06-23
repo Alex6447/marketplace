@@ -7,10 +7,18 @@
 :class:`ImageProvider`.
 
 Стадия [2] «генерация идей» — в :mod:`marketplace_shared.pipeline.ideas`.
+Стадия [3] «визуальные концепции» — в :mod:`marketplace_shared.pipeline.concepts`.
 """
 
 from __future__ import annotations
 
+from .concepts import (
+    CardConcept,
+    CardSetConcepts,
+    TextBlock,
+    build_concepts_request,
+    generate_concepts,
+)
 from .ideas import (
     IdeaSlide,
     ProductBrief,
@@ -20,9 +28,16 @@ from .ideas import (
 )
 
 __all__ = [
+    # стадия [2]
     "ProductBrief",
     "IdeaSlide",
     "ProductIdeas",
     "build_ideas_request",
     "generate_ideas",
+    # стадия [3]
+    "TextBlock",
+    "CardConcept",
+    "CardSetConcepts",
+    "build_concepts_request",
+    "generate_concepts",
 ]

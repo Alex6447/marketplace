@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from marketplace_api import __version__
 from marketplace_api.config import get_settings
-from marketplace_api.routers import assets, health, ideas, products, projects
+from marketplace_api.routers import assets, cards, health, ideas, products, projects
 
 # Windows: async-драйвер psycopg несовместим с ProactorEventLoop (дефолт на Windows).
 # Переключаем политику на SelectorEventLoop ДО создания цикла uvicorn'ом. На Linux
@@ -39,6 +39,7 @@ app.include_router(projects.router, prefix="/api")
 app.include_router(products.router, prefix="/api")
 app.include_router(assets.router, prefix="/api")
 app.include_router(ideas.router, prefix="/api")
+app.include_router(cards.router, prefix="/api")
 
 
 @app.get("/healthz")

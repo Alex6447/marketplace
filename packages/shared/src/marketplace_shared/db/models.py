@@ -100,6 +100,13 @@ class CardSet(Base, TimestampMixin):
         nullable=False,
         index=True,
     )
+    #: Товар, для которого собран комплект (концепции стадии [3] генерируются по товару).
+    #: Nullable: модель раздела 5 связывает набор с проектом, привязка к товару — уточнение.
+    product_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("products.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
     #: Статус набора (draft/generating/ready/…). Строка — расширяемо без миграций.
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="draft")
 
