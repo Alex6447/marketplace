@@ -15,6 +15,14 @@
 from __future__ import annotations
 
 from .assets_prep import prepare_asset
+from .cache import (
+    PipelineSettings,
+    StageCache,
+    artifact_key,
+    blob_digest,
+    get_pipeline_settings,
+    stage_digest,
+)
 from .concepts import (
     CardConcept,
     CardSetConcepts,
@@ -58,4 +66,11 @@ __all__ = [
     "build_background_prompt",
     "generate_card_background",
     "composite_product_on_background",
+    # контент-адресуемый кэш стадий
+    "PipelineSettings",
+    "get_pipeline_settings",
+    "StageCache",
+    "stage_digest",
+    "artifact_key",
+    "blob_digest",
 ]

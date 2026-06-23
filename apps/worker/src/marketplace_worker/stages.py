@@ -32,10 +32,13 @@ from marketplace_shared.db import (
 )
 from marketplace_shared.pipeline import (
     CardConcept,
+    StageCache,
     composite_product_on_background,
     generate_card_background,
     generate_card_image,
+    get_pipeline_settings,
     prepare_asset,
+    stage_digest,
 )
 from marketplace_shared.providers import (
     ImageRef,
@@ -61,8 +64,13 @@ def _media_type_for(key: str) -> str:
     return guessed or "image/png"
 
 
-def _mask_key(product_id: uuid.UUID, asset_id: uuid.UUID) -> str:
-    return f"products/{product_id}/assets/{asset_id}.mask.png"
+def _provider_id(provider: object) -> str:
+    """Стабильный идентификатор провайдера для digest кэша (класс реализации).
+
+    Смена бэкенда (echo → gemini, simple → birefnet) меняет идентификатор и, значит,
+    контент-адрес — кэш одного провайдера не подменяет артефакты другого.
+    """
+    return type(provider).__name__
 
 
 def _cutout_key(mask_key: str) -> str:
@@ -87,7 +95,12 @@ def _materialize(ref: ImageRef) -> bytes:
 def run_asset_matting(
     session: Session, asset_id: uuid.UUID, *, model: str | None = None
 ) -> dict[str, Any]:
-    """Построить маску и вырез товара, сохранить в хранилище, проставить mask_s3_key."""
+    """Построить маску и вырез товара, сохранить в хранилище, проставить mask_s3_key.
+
+    Контент-адресуемо: маска/вырез адресуются по хэшу фото + провайдер/модель. Если
+    то же фото уже матировалось тем же провайдером — переиспользуем кэш без вызова
+    провайдера (см. :mod:`marketplace_shared.pipeline.cache`).
+    """
     asset = session.get(ProductAsset, asset_id)
     if asset is None:
         raise ValueError("Ассет не найден")
@@ -97,17 +110,35 @@ def run_asset_matting(
     storage = get_storage()
     photo_bytes = storage.get_object(asset.s3_key)
     provider = get_matting_provider()
-    image = ImageRef(data=photo_bytes, media_type=_media_type_for(asset.s3_key))
-    result = _run(prepare_asset(provider, image, model=model))
 
-    mask_key = _mask_key(asset.product_id, asset.id)
-    storage.put_object(mask_key, result.mask.data, "image/png")
-    if result.cutout is not None and result.cutout.data is not None:
-        storage.put_object(_cutout_key(mask_key), result.cutout.data, "image/png")
+    settings = get_pipeline_settings()
+    cache = StageCache(storage, prefix=settings.cache_prefix)
+    digest = stage_digest(
+        "matting",
+        params={"provider": _provider_id(provider), "model": model},
+        blobs=[photo_bytes],
+    )
+    mask_key = cache.key("matting", digest, "mask.png")
+    cached = settings.cache_enabled and cache.exists(mask_key)
+
+    if cached:
+        provider_name = "cache"
+    else:
+        image = ImageRef(data=photo_bytes, media_type=_media_type_for(asset.s3_key))
+        result = _run(prepare_asset(provider, image, model=model))
+        cache.put(mask_key, result.mask.data, "image/png")
+        if result.cutout is not None and result.cutout.data is not None:
+            cache.put(_cutout_key(mask_key), result.cutout.data, "image/png")
+        provider_name = result.provider
 
     asset.mask_s3_key = mask_key
     session.commit()
-    return {"asset_id": str(asset.id), "mask_s3_key": mask_key, "provider": result.provider}
+    return {
+        "asset_id": str(asset.id),
+        "mask_s3_key": mask_key,
+        "provider": provider_name,
+        "cached": cached,
+    }
 
 
 # --------------------------------------------------------------------------- #
@@ -166,68 +197,104 @@ def run_card_image(
     concept = CardConcept.model_validate(card.concept_json)
     provider = get_image_provider()
 
+    settings = get_pipeline_settings()
+    cache = StageCache(storage, prefix=settings.cache_prefix)
+    ref_blobs = [r.data for r in references if r.data is not None]
+    # Общие для обоих режимов параметры контент-адреса стадии [5].
+    digest_params: dict[str, Any] = {
+        "provider": _provider_id(provider),
+        "model": model,
+        "size": size,
+        "seed": seed,
+        "brand_style": brand_style,
+        "concept": card.concept_json,
+    }
+
     if mode == "composite":
         if not photo.mask_s3_key:
             raise ValueError("Для композитинга нужна маска товара — сначала стадия [4]")
         cutout = storage.get_object(_cutout_key(photo.mask_s3_key))
-        result, prompt = _run(
-            generate_card_background(
-                provider,
-                concept,
-                references=references,
-                brand_style=brand_style,
-                model=model,
-                size=size,
-                seed=seed,
+        stage_name = "image_composite"
+        digest = stage_digest(stage_name, params=digest_params, blobs=[cutout, *ref_blobs])
+        key = cache.key(stage_name, digest)
+        cached = settings.cache_enabled and cache.exists(key)
+        if cached:
+            gen_params: dict[str, Any] = {
+                "stage": stage_name, "mode": "composite", "cached": True, "digest": digest,
+            }
+        else:
+            result, prompt = _run(
+                generate_card_background(
+                    provider,
+                    concept,
+                    references=references,
+                    brand_style=brand_style,
+                    model=model,
+                    size=size,
+                    seed=seed,
+                )
             )
-        )
-        image_bytes = composite_product_on_background(_materialize(result.image), cutout)
-        gen_params: dict[str, Any] = {
-            "stage": "image_composite",
-            "mode": "composite",
-            "provider": result.provider,
-            "model": result.model,
-            "seed": seed,
-            "background_prompt": prompt,
-            "usage": result.usage.model_dump(),
-        }
+            image_bytes = composite_product_on_background(_materialize(result.image), cutout)
+            cache.put(key, image_bytes, "image/png")
+            gen_params = {
+                "stage": stage_name,
+                "mode": "composite",
+                "cached": False,
+                "digest": digest,
+                "provider": result.provider,
+                "model": result.model,
+                "seed": seed,
+                "background_prompt": prompt,
+                "usage": result.usage.model_dump(),
+            }
     else:
-        product_photo = ImageRef(
-            data=storage.get_object(photo.s3_key), media_type=_media_type_for(photo.s3_key)
-        )
-        result, instruction = _run(
-            generate_card_image(
-                provider,
-                product_photo=product_photo,
-                concept=concept,
-                references=references,
-                brand_style=brand_style,
-                model=model,
-                size=size,
-                seed=seed,
+        photo_bytes = storage.get_object(photo.s3_key)
+        stage_name = "image_edit"
+        digest = stage_digest(stage_name, params=digest_params, blobs=[photo_bytes, *ref_blobs])
+        key = cache.key(stage_name, digest)
+        cached = settings.cache_enabled and cache.exists(key)
+        if cached:
+            gen_params = {
+                "stage": stage_name, "mode": "edit", "cached": True, "digest": digest,
+            }
+        else:
+            product_photo = ImageRef(
+                data=photo_bytes, media_type=_media_type_for(photo.s3_key)
             )
-        )
-        image_bytes = _materialize(result.image)
-        gen_params = {
-            "stage": "image_edit",
-            "mode": "edit",
-            "provider": result.provider,
-            "model": result.model,
-            "seed": seed,
-            "instruction": instruction,
-            "usage": result.usage.model_dump(),
-        }
+            result, instruction = _run(
+                generate_card_image(
+                    provider,
+                    product_photo=product_photo,
+                    concept=concept,
+                    references=references,
+                    brand_style=brand_style,
+                    model=model,
+                    size=size,
+                    seed=seed,
+                )
+            )
+            image_bytes = _materialize(result.image)
+            cache.put(key, image_bytes, "image/png")
+            gen_params = {
+                "stage": stage_name,
+                "mode": "edit",
+                "cached": False,
+                "digest": digest,
+                "provider": result.provider,
+                "model": result.model,
+                "seed": seed,
+                "instruction": instruction,
+                "usage": result.usage.model_dump(),
+            }
 
     last_no = session.scalar(
         select(func.max(CardVersion.version_no)).where(CardVersion.card_id == card.id)
     )
     version_no = (last_no or 0) + 1
-    version_id = uuid.uuid4()
-    key = f"cards/{card.id}/versions/{version_id}.png"
-    storage.put_object(key, image_bytes, "image/png")
-
+    # Изображение адресуется по контенту входов (key из StageCache): при неизменных
+    # входах новая версия ссылается на тот же объект, провайдер не вызывается.
     version = CardVersion(
-        id=version_id,
+        id=uuid.uuid4(),
         card_id=card.id,
         version_no=version_no,
         image_s3_key=key,
@@ -237,8 +304,9 @@ def run_card_image(
     session.commit()
     return {
         "card_id": str(card.id),
-        "card_version_id": str(version_id),
+        "card_version_id": str(version.id),
         "version_no": version_no,
         "image_s3_key": key,
         "mode": mode,
+        "cached": cached,
     }

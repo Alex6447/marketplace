@@ -65,6 +65,18 @@ class S3Storage:
         response = self._client.get_object(Bucket=self._bucket, Key=key)
         return response["Body"].read()
 
+    def object_exists(self, key: str) -> bool:
+        """Проверить наличие объекта по ключу без чтения тела (HEAD).
+
+        Нужен контент-адресуемому кэшу стадий (:class:`marketplace_shared.pipeline.
+        StageCache`): попадание в кэш — это существующий объект по ключу-хэшу входов.
+        """
+        try:
+            self._client.head_object(Bucket=self._bucket, Key=key)
+        except ClientError:
+            return False
+        return True
+
     def presigned_get_url(self, key: str, expires: int = DEFAULT_URL_EXPIRES) -> str:
         """Сгенерировать presigned-URL для скачивания объекта по ключу `key`."""
         return self._client.generate_presigned_url(
