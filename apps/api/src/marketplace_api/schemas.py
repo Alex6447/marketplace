@@ -61,6 +61,26 @@ class ProductRead(BaseModel):
     requirements_json: dict[str, Any]
 
 
+# --- Ideas (стадия [2]) -----------------------------------------------------
+
+
+class IdeasGenerateRequest(BaseModel):
+    """Параметры запуска генерации идей (все опциональны)."""
+
+    #: Переопределить модель LLM (иначе — дефолт выбранного провайдера).
+    model: str | None = None
+    #: Перегенерировать, даже если идеи уже есть (иначе вернётся 409).
+    force: bool = False
+
+
+class IdeasRead(BaseModel):
+    """Идеи комплекта карточек товара (результат стадии [2])."""
+
+    product_id: uuid.UUID
+    #: Структура соответствует `marketplace_shared.pipeline.ProductIdeas`.
+    ideas: dict[str, Any]
+
+
 # --- ProductAsset -----------------------------------------------------------
 
 AssetType = Literal["photo", "reference"]

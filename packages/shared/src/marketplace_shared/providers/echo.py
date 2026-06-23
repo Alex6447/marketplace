@@ -27,12 +27,27 @@ from .contracts import (
 )
 
 
-def _stub_from_schema(schema: dict[str, Any]) -> Any:
+def _resolve_ref(ref: str, root: dict[str, Any]) -> dict[str, Any]:
+    """Разрешить локальную ссылку JSON Schema (`#/$defs/Name`) относительно корня."""
+    node: Any = root
+    for part in ref.lstrip("#/").split("/"):
+        node = node[part]
+    return node
+
+
+def _stub_from_schema(schema: dict[str, Any], root: dict[str, Any] | None = None) -> Any:
     """Построить минимальную болванку, валидную по (под)схеме JSON Schema.
 
-    Поддерживает базовые конструкции (object/array/примитивы, enum, default). Этого
-    достаточно, чтобы downstream-стадии получали структурно корректный JSON в офлайне.
+    Поддерживает базовые конструкции (object/array/примитивы, enum, default) и
+    локальные ссылки `$ref` (`#/$defs/...`) — Pydantic строит вложенные модели
+    через них. `root` — корневая схема для резолва ссылок (по умолчанию сама схема).
+    Этого достаточно, чтобы downstream-стадии получали структурно корректный JSON
+    в офлайне.
     """
+    if root is None:
+        root = schema
+    if "$ref" in schema:
+        return _stub_from_schema(_resolve_ref(schema["$ref"], root), root)
     if "default" in schema:
         return schema["default"]
     if "enum" in schema and schema["enum"]:
@@ -45,10 +60,10 @@ def _stub_from_schema(schema: dict[str, Any]) -> Any:
     if schema_type == "object" or "properties" in schema:
         props: dict[str, Any] = schema.get("properties", {})
         required = schema.get("required", list(props))
-        return {key: _stub_from_schema(props[key]) for key in required if key in props}
+        return {key: _stub_from_schema(props[key], root) for key in required if key in props}
     if schema_type == "array":
         items = schema.get("items")
-        return [_stub_from_schema(items)] if isinstance(items, dict) else []
+        return [_stub_from_schema(items, root)] if isinstance(items, dict) else []
     if schema_type == "integer":
         return 0
     if schema_type == "number":

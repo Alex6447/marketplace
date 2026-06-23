@@ -58,6 +58,9 @@ class Product(Base):
     target_audience: Mapped[str | None] = mapped_column(String(512), nullable=True)
     #: Требования к карточкам (форматы МП, ограничения) — вход стадий [2]/[3].
     requirements_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    #: Идеи комплекта карточек — результат стадии [2] (план слайдов, смыслы, тон).
+    #: NULL, пока идеи не сгенерированы; перезапись стадии заменяет значение целиком.
+    ideas_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     project: Mapped[Project] = relationship(back_populates="products")
     assets: Mapped[list[ProductAsset]] = relationship(
