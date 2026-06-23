@@ -113,19 +113,23 @@ def anchor_xy(
     return x, y
 
 
-def _safe_box(canvas: Canvas) -> tuple[int, int, int, int]:
-    """Прямоугольник безопасной зоны (с отступом от краёв)."""
+def _default_box(canvas: Canvas) -> tuple[int, int, int, int]:
+    """Прямоугольник безопасной зоны по умолчанию (равный отступ от краёв)."""
     margin = int(min(canvas.width, canvas.height) * DEFAULT_MARGIN_FRACTION)
     return (margin, margin, canvas.width - margin, canvas.height - margin)
 
 
 def _draw_block(
-    image: Image.Image, block: RenderBlock, canvas: Canvas, *, font_path: str | None
+    image: Image.Image,
+    block: RenderBlock,
+    canvas: Canvas,
+    box: tuple[int, int, int, int],
+    *,
+    font_path: str | None,
 ) -> None:
-    """Нарисовать один блок поверх ``image`` (in-place)."""
+    """Нарисовать один блок поверх ``image`` в безопасной зоне ``box`` (in-place)."""
     draw = ImageDraw.Draw(image)
     font = _load_font(block.font_size, bold=block.weight == "bold", font_path=font_path)
-    box = _safe_box(canvas)
     max_width = block.max_width * canvas.width - 2 * block.padding
 
     lines = wrap_lines(draw, block.text, font, max_width)
@@ -164,9 +168,10 @@ def render_blocks(image: Image.Image, request: RenderRequest, *, font_path: str 
     тестировать без сети/хранилища.
     """
     canvas = TextRenderer.canvas_of(request, image)
+    box = request.safe_zone.box(canvas) if request.safe_zone is not None else _default_box(canvas)
     composed = image.convert("RGBA")
     for block in request.blocks:
-        _draw_block(composed, block, canvas, font_path=font_path)
+        _draw_block(composed, block, canvas, box, font_path=font_path)
     buf = io.BytesIO()
     composed.convert("RGB").save(buf, format="PNG")
     return buf.getvalue()

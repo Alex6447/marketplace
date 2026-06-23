@@ -23,22 +23,41 @@ from .contracts import (
     RenderBlock,
     RenderRequest,
     RenderResult,
+    SafeZone,
     Weight,
 )
 from .errors import RendererNotAvailable, RendererNotConfigured, TextRenderError
 from .pillow import PillowTextRenderer, render_blocks, wrap_lines
 from .playwright import PlaywrightTextRenderer, build_overlay_html
 from .registry import available_text_renderers, get_text_renderer
+from .templates import (
+    DEFAULT_TEMPLATE_KEY,
+    Marketplace,
+    MarketplaceTemplate,
+    available_template_keys,
+    get_template,
+    list_templates,
+    templates_for,
+)
 
 __all__ = [
     # контракты
     "RenderBlock",
     "Canvas",
+    "SafeZone",
     "RenderRequest",
     "RenderResult",
     "GridPosition",
     "Align",
     "Weight",
+    # шаблоны маркетплейсов
+    "Marketplace",
+    "MarketplaceTemplate",
+    "DEFAULT_TEMPLATE_KEY",
+    "get_template",
+    "list_templates",
+    "templates_for",
+    "available_template_keys",
     # интерфейс и backend'ы
     "TextRenderer",
     "PillowTextRenderer",

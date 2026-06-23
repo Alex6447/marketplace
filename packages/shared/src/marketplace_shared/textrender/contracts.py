@@ -67,6 +67,29 @@ class Canvas(BaseModel):
     height: int = Field(gt=0)
 
 
+class SafeZone(BaseModel):
+    """Безопасное поле карточки — отступы от краёв в долях стороны.
+
+    Внутри этого прямоугольника размещается значимый контент (текст, бейджи): за его
+    пределами маркетплейс может обрезать/перекрыть изображение элементами интерфейса.
+    Доли: ``left``/``right`` — от ширины, ``top``/``bottom`` — от высоты холста.
+    """
+
+    top: float = Field(default=0.04, ge=0, lt=0.5)
+    right: float = Field(default=0.04, ge=0, lt=0.5)
+    bottom: float = Field(default=0.04, ge=0, lt=0.5)
+    left: float = Field(default=0.04, ge=0, lt=0.5)
+
+    def box(self, canvas: Canvas) -> tuple[int, int, int, int]:
+        """Прямоугольник безопасной зоны в пикселях: ``(left, top, right, bottom)``."""
+        return (
+            int(self.left * canvas.width),
+            int(self.top * canvas.height),
+            canvas.width - int(self.right * canvas.width),
+            canvas.height - int(self.bottom * canvas.height),
+        )
+
+
 class RenderRequest(BaseModel):
     """Запрос на наложение текста поверх изображения карточки.
 
@@ -79,6 +102,10 @@ class RenderRequest(BaseModel):
     base_image: ImageRef
     blocks: list[RenderBlock] = Field(default_factory=list)
     canvas: Canvas | None = None
+    safe_zone: SafeZone | None = Field(
+        default=None,
+        description="Безопасное поле (из шаблона МП). None → дефолтный отступ рендерера.",
+    )
     html: str | None = None
 
 

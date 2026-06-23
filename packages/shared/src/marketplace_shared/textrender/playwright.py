@@ -20,7 +20,7 @@ import io
 from PIL import Image
 
 from .base import TextRenderer
-from .contracts import Canvas, RenderBlock, RenderRequest, RenderResult
+from .contracts import Canvas, RenderBlock, RenderRequest, RenderResult, SafeZone
 from .errors import RendererNotAvailable
 
 # Перевод позиции сетки 3×3 в CSS-выравнивание контейнера (flex).
@@ -36,15 +36,25 @@ def _split_position(position: str) -> tuple[str, str]:
     return vertical, horizontal
 
 
-def _block_css(block: RenderBlock, canvas: Canvas) -> str:
-    """CSS одного блока: позиция по сетке, кегль, цвет, выравнивание, плашка."""
+def _safe_padding_css(request: RenderRequest, canvas: Canvas) -> str:
+    """CSS-падинг контейнера блоков из безопасной зоны (px по сторонам)."""
+    zone = request.safe_zone or SafeZone()
+    top = int(zone.top * canvas.height)
+    right = int(zone.right * canvas.width)
+    bottom = int(zone.bottom * canvas.height)
+    left = int(zone.left * canvas.width)
+    return f"{top}px {right}px {bottom}px {left}px"
+
+
+def _block_css(block: RenderBlock, canvas: Canvas, pad_css: str) -> str:
+    """CSS одного блока: безопасное поле, позиция по сетке, кегль, цвет, плашка."""
     vertical, horizontal = _split_position(block.position)
     max_width_px = int(block.max_width * canvas.width)
     rules = [
         "position:absolute",
         "display:flex",
         "inset:0",
-        f"padding:{int(min(canvas.width, canvas.height) * 0.04)}px",
+        f"padding:{pad_css}",
         f"align-items:{_VERTICAL[vertical]}",
         f"justify-content:{_HORIZONTAL[horizontal]}",
         "box-sizing:border-box",
@@ -74,9 +84,10 @@ def build_overlay_html(request: RenderRequest, canvas: Canvas) -> str:
     """
     if request.html is not None:
         return request.html
+    pad_css = _safe_padding_css(request, canvas)
     layers = []
     for block in request.blocks:
-        layers.append(_block_css(block, canvas).format(text=html_lib.escape(block.text)))
+        layers.append(_block_css(block, canvas, pad_css).format(text=html_lib.escape(block.text)))
     body = "".join(layers)
     return (
         "<!doctype html><html><head><meta charset='utf-8'>"
