@@ -44,6 +44,11 @@ from .imagegen import (
     generate_card_background,
     generate_card_image,
 )
+from .textoverlay import (
+    build_card_render_request,
+    concept_to_render_blocks,
+    render_card_text,
+)
 
 __all__ = [
     # стадия [2]
@@ -66,6 +71,10 @@ __all__ = [
     "build_background_prompt",
     "generate_card_background",
     "composite_product_on_background",
+    # стадия [6] — наложение текста концепции
+    "concept_to_render_blocks",
+    "build_card_render_request",
+    "render_card_text",
     # контент-адресуемый кэш стадий
     "PipelineSettings",
     "get_pipeline_settings",

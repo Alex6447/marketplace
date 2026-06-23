@@ -20,10 +20,11 @@ from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from marketplace_api.enqueue import enqueue_card_image, enqueue_card_set
+from marketplace_api.enqueue import enqueue_card_image, enqueue_card_set, enqueue_card_text
 from marketplace_api.schemas import (
     CardImageGenerateRequest,
     CardSetGenerateRequest,
+    CardTextRenderRequest,
     CardVersionRead,
     JobRead,
 )
@@ -61,10 +62,12 @@ async def _photo_asset(session: AsyncSession, product_id: uuid.UUID) -> ProductA
 
 
 def _with_url(version: CardVersion, storage: S3Storage) -> CardVersionRead:
-    """DTO версии с presigned-ссылкой на изображение (если оно есть)."""
+    """DTO версии с presigned-ссылками на изображение [5] и финал с текстом [6]."""
     dto = CardVersionRead.model_validate(version)
     if version.image_s3_key:
         dto.image_url = storage.presigned_get_url(version.image_s3_key)
+    if version.final_s3_key:
+        dto.final_url = storage.presigned_get_url(version.final_s3_key)
     return dto
 
 
@@ -221,3 +224,40 @@ async def list_card_versions(
     )
     versions = list(result.all())
     return await run_in_threadpool(lambda: [_with_url(v, storage) for v in versions])
+
+
+@router.post(
+    "/card-versions/{version_id}/text",
+    response_model=JobRead,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def render_card_version_text(
+    version_id: uuid.UUID, payload: CardTextRenderRequest, session: SessionDep
+) -> JobRead:
+    """Поставить наложение текста концепции на версию карточки в очередь (стадия [6]).
+
+    Требует изображения стадии [5] у версии (иначе 409). Сам рендер выполняет worker;
+    результат пишется в ``CardVersion.final_s3_key``. Возвращает задачу (Job).
+    """
+    version = await session.get(CardVersion, version_id)
+    if version is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Версия карточки не найдена"
+        )
+    if not version.image_s3_key:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="У версии нет изображения стадии [5]; сначала сгенерируйте изображение",
+        )
+
+    job = Job(
+        type=job_const.JOB_CARD_TEXT,
+        status=job_const.JOB_PENDING,
+        payload_json={"card_version_id": str(version_id), "template_key": payload.template_key},
+    )
+    session.add(job)
+    await session.commit()
+    await session.refresh(job)
+
+    enqueue_card_text(job.id, version_id, template_key=payload.template_key)
+    return JobRead.model_validate(job)

@@ -80,6 +80,25 @@ def card_image_task(
         return result
 
 
+@app.task(name=job_const.TASK_CARD_TEXT, bind=True)
+def card_text_overlay_task(
+    self: Any, job_id: str, card_version_id: str, *, template_key: str | None = None
+) -> dict:
+    """Стадия [6]: наложение текста концепции на изображение версии (владеет своей Job)."""
+    with sync_session_scope() as session:
+        job = _load_job(session, job_id)
+        job_lifecycle.mark_running(session, job, stage="text_overlay", progress=20)
+        try:
+            result = stages.run_card_text_overlay(
+                session, uuid.UUID(card_version_id), template_key=template_key
+            )
+        except Exception as exc:
+            job_lifecycle.mark_failure(session, job, str(exc))
+            raise
+        job_lifecycle.mark_success(session, job, result)
+        return result
+
+
 @app.task(name=job_const.TASK_CARD_SET_FINALIZE, bind=True)
 def finalize_card_set_task(self: Any, child_results: list[dict], parent_job_id: str) -> dict:
     """Финализатор chord: помечает родительскую задачу набора успехом.

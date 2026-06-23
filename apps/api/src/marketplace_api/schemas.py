@@ -177,6 +177,15 @@ class CardVersionRead(BaseModel):
     created_at: datetime
     #: Presigned-ссылка на сгенерированное изображение (генерируется на лету).
     image_url: str | None = None
+    #: Presigned-ссылка на финал с наложенным текстом (стадия [6]); None, пока нет.
+    final_url: str | None = None
+
+
+class CardTextRenderRequest(BaseModel):
+    """Параметры наложения текста на версию карточки — стадия [6]."""
+
+    #: Ключ шаблона маркетплейса (размеры/safe-zone). None → дефолтный шаблон.
+    template_key: str | None = None
 
 
 # --- ProductAsset -----------------------------------------------------------

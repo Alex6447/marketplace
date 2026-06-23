@@ -66,6 +66,17 @@ def enqueue_card_image(
     )
 
 
+def enqueue_card_text(
+    job_id: uuid.UUID, card_version_id: uuid.UUID, *, template_key: str | None = None
+) -> None:
+    """Поставить стадию [6] (наложение текста концепции на изображение версии)."""
+    get_celery().send_task(
+        job_const.TASK_CARD_TEXT,
+        args=[str(job_id), str(card_version_id)],
+        kwargs={"template_key": template_key},
+    )
+
+
 def enqueue_card_set(
     parent_job_id: uuid.UUID, items: list[dict[str, Any]], *, prepare: bool
 ) -> None:

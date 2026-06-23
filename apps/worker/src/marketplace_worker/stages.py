@@ -34,6 +34,7 @@ from marketplace_shared.pipeline import (
     CardConcept,
     StageCache,
     composite_product_on_background,
+    concept_to_render_blocks,
     generate_card_background,
     generate_card_image,
     get_pipeline_settings,
@@ -46,6 +47,7 @@ from marketplace_shared.providers import (
     get_matting_provider,
 )
 from marketplace_shared.storage import get_storage
+from marketplace_shared.textrender import RenderRequest, get_template, get_text_renderer
 
 
 def _run[T](coro: Coroutine[Any, Any, T]) -> T:
@@ -308,5 +310,87 @@ def run_card_image(
         "version_no": version_no,
         "image_s3_key": key,
         "mode": mode,
+        "cached": cached,
+    }
+
+
+# --------------------------------------------------------------------------- #
+# Стадия [6] — наложение текста концепции на изображение карточки
+# --------------------------------------------------------------------------- #
+
+
+def run_card_text_overlay(
+    session: Session,
+    card_version_id: uuid.UUID,
+    *,
+    template_key: str | None = None,
+) -> dict[str, Any]:
+    """Наложить текст концепции на изображение версии и записать final_s3_key.
+
+    Берёт изображение стадии [5] (``CardVersion.image_s3_key``) и текстовые блоки
+    концепции карточки, рендерит их выбранным движком (TEXT_RENDERER) по шаблону
+    маркетплейса. Контент-адресуемо: результат адресуется по хэшу изображения +
+    блоков + шаблона + рендерера — повторный рендер тех же входов берёт кэш.
+    """
+    version = session.get(CardVersion, card_version_id)
+    if version is None:
+        raise ValueError("Версия карточки не найдена")
+    if not version.image_s3_key:
+        raise ValueError("У версии нет изображения стадии [5] для наложения текста")
+
+    card = session.get(Card, version.card_id)
+    if card is None or card.concept_json is None:
+        raise ValueError("У карточки версии нет концепции (стадия [3])")
+    concept = CardConcept.model_validate(card.concept_json)
+
+    template = get_template(template_key)
+    renderer = get_text_renderer()
+    storage = get_storage()
+    base_bytes = storage.get_object(version.image_s3_key)
+    blocks = concept_to_render_blocks(concept, template)
+
+    settings = get_pipeline_settings()
+    cache = StageCache(storage, prefix=settings.cache_prefix)
+    digest = stage_digest(
+        "text_overlay",
+        params={
+            "renderer": _provider_id(renderer),
+            "template": template.key,
+            "blocks": [b.model_dump() for b in blocks],
+        },
+        blobs=[base_bytes],
+    )
+    key = cache.key("text_overlay", digest)
+    cached = settings.cache_enabled and cache.exists(key)
+
+    if not cached:
+        request = RenderRequest(
+            base_image=ImageRef(data=base_bytes, media_type=_media_type_for(version.image_s3_key)),
+            blocks=blocks,
+            canvas=template.canvas,
+            safe_zone=template.safe_zone,
+        )
+        result = _run(renderer.render(request))
+        cache.put(key, _materialize(result.image), "image/png")
+
+    version.final_s3_key = key
+    version.gen_params_json = {
+        **version.gen_params_json,
+        "text_overlay": {
+            "stage": "text_overlay",
+            "cached": cached,
+            "digest": digest,
+            "renderer": renderer.name,
+            "template": template.key,
+            "blocks": len(blocks),
+        },
+    }
+    session.commit()
+    return {
+        "card_version_id": str(version.id),
+        "final_s3_key": key,
+        "template": template.key,
+        "renderer": renderer.name,
+        "blocks": len(blocks),
         "cached": cached,
     }
