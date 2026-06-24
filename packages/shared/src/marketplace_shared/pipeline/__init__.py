@@ -68,6 +68,10 @@ from .imagegen import (
     generate_card_background,
     generate_card_image,
 )
+from .regen import (
+    apply_changes_to_concept,
+    extract_image_overrides,
+)
 from .textoverlay import (
     build_card_render_request,
     concept_to_render_blocks,
@@ -108,6 +112,9 @@ __all__ = [
     "ChangeOperation",
     "build_feedback_request",
     "parse_feedback",
+    # перегенерация адресуемой стадии по фидбэку
+    "apply_changes_to_concept",
+    "extract_image_overrides",
     # сравнение режимов стадии [5] (edit vs composite) — выбор дефолта
     "APPROACH_EDIT",
     "APPROACH_COMPOSITE",

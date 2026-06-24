@@ -77,6 +77,17 @@ def enqueue_card_text(
     )
 
 
+def enqueue_feedback_regen(
+    job_id: uuid.UUID, feedback_id: uuid.UUID, *, template_key: str | None = None
+) -> None:
+    """Поставить перегенерацию адресуемой стадии по фидбэку (стадия [9] → [3]/[5]/[6])."""
+    get_celery().send_task(
+        job_const.TASK_FEEDBACK_REGEN,
+        args=[str(job_id), str(feedback_id)],
+        kwargs={"template_key": template_key},
+    )
+
+
 def enqueue_card_set(
     parent_job_id: uuid.UUID, items: list[dict[str, Any]], *, prepare: bool
 ) -> None:

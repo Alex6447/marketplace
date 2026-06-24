@@ -99,6 +99,25 @@ def card_text_overlay_task(
         return result
 
 
+@app.task(name=job_const.TASK_FEEDBACK_REGEN, bind=True)
+def feedback_regen_task(
+    self: Any, job_id: str, feedback_id: str, *, template_key: str | None = None
+) -> dict:
+    """Перегенерация адресуемой фидбэком стадии [9]→[3]/[5]/[6] (владеет своей Job)."""
+    with sync_session_scope() as session:
+        job = _load_job(session, job_id)
+        job_lifecycle.mark_running(session, job, stage="feedback_regen", progress=15)
+        try:
+            result = stages.run_feedback_regeneration(
+                session, uuid.UUID(feedback_id), template_key=template_key
+            )
+        except Exception as exc:
+            job_lifecycle.mark_failure(session, job, str(exc))
+            raise
+        job_lifecycle.mark_success(session, job, result)
+        return result
+
+
 @app.task(name=job_const.TASK_CARD_SET_FINALIZE, bind=True)
 def finalize_card_set_task(self: Any, child_results: list[dict], parent_job_id: str) -> dict:
     """Финализатор chord: помечает родительскую задачу набора успехом.

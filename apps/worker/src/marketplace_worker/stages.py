@@ -26,15 +26,20 @@ from marketplace_shared.db import (
     Card,
     CardSet,
     CardVersion,
+    Feedback,
     Product,
     ProductAsset,
     Project,
 )
 from marketplace_shared.pipeline import (
     CardConcept,
+    FeedbackStage,
+    ParsedFeedback,
     StageCache,
+    apply_changes_to_concept,
     composite_product_on_background,
     concept_to_render_blocks,
+    extract_image_overrides,
     generate_card_background,
     generate_card_image,
     get_pipeline_settings,
@@ -393,4 +398,131 @@ def run_card_text_overlay(
         "renderer": renderer.name,
         "blocks": len(blocks),
         "cached": cached,
+    }
+
+
+# --------------------------------------------------------------------------- #
+# Перегенерация адресуемой стадии по фидбэку (стадия [9] → [3]/[5]/[6])
+# --------------------------------------------------------------------------- #
+
+
+def _next_version_no(session: Session, card_id: uuid.UUID) -> int:
+    """Следующий номер версии карточки (история версий не перетирается)."""
+    last_no = session.scalar(
+        select(func.max(CardVersion.version_no)).where(CardVersion.card_id == card_id)
+    )
+    return (last_no or 0) + 1
+
+
+def run_feedback_regeneration(
+    session: Session, feedback_id: uuid.UUID, *, template_key: str | None = None
+) -> dict[str, Any]:
+    """Перегенерировать адресуемую фидбэком стадию и создать новую версию карточки.
+
+    По разобранному действию (:class:`ParsedFeedback`, поле ``parsed_action_json``):
+    дельты применяются к концепции карточки [3] детерминированно (value-несущие),
+    затем перегенерируется **только нужная стадия** (docs/plan.md, разделы 1 и 8):
+
+    - ``target_stage=text`` [6] — новая версия наследует изображение [5] исходной
+      (товар 1:1, не пересобирается), меняется лишь наложенный текст;
+    - ``target_stage=image`` [5] / ``concept`` [3] — изображение пересобирается
+      (контент-адресуемый кэш решает, дёргать ли провайдера); ``seed``/``model`` из
+      дельт применяются как override'ы.
+
+    Стадии ``ideas`` [2] и ``unknown`` автоматически не перегенерируются (нужно
+    ручное решение). История версий сохраняется: всегда создаётся новая запись.
+    """
+    feedback = session.get(Feedback, feedback_id)
+    if feedback is None:
+        raise ValueError("Фидбэк не найден")
+    if not feedback.parsed_action_json:
+        raise ValueError("Фидбэк не разобран (нет parsed_action) — сначала стадия [9]")
+    parsed = ParsedFeedback.model_validate(feedback.parsed_action_json)
+
+    source = session.get(CardVersion, feedback.card_version_id)
+    if source is None:
+        raise ValueError("Исходная версия карточки не найдена")
+    card = session.get(Card, source.card_id)
+    if card is None or card.concept_json is None:
+        raise ValueError("У карточки нет концепции (стадия [3])")
+
+    stage = parsed.target_stage
+    if stage in (FeedbackStage.ideas, FeedbackStage.unknown):
+        raise ValueError(
+            f"Стадия {stage.value!r} по фидбэку не перегенерируется автоматически "
+            "(требуется ручное решение менеджера)"
+        )
+
+    # Дельты концепции применяем для стадий концепции [3] и текста [6] (правки текстовых
+    # блоков живут в концепции). Для чистой стадии [5] концепция не трогается.
+    unapplied: list[dict[str, Any]] = []
+    if stage in (FeedbackStage.concept, FeedbackStage.text):
+        concept = CardConcept.model_validate(card.concept_json)
+        new_concept, unapplied_changes = apply_changes_to_concept(concept, parsed.changes)
+        card.concept_json = new_concept.model_dump(mode="json")
+        session.commit()
+        unapplied = [c.model_dump(mode="json") for c in unapplied_changes]
+
+    feedback_meta: dict[str, Any] = {
+        "feedback_id": str(feedback.id),
+        "target_stage": stage.value,
+        "action": parsed.action.value,
+        "source_version_id": str(source.id),
+        "source_version_no": source.version_no,
+        "unapplied_changes": unapplied,
+    }
+
+    if stage == FeedbackStage.text:
+        if not source.image_s3_key:
+            raise ValueError(
+                "У исходной версии нет изображения [5] для повторного наложения текста"
+            )
+        # Новая версия наследует изображение [5] исходной — товар неизменен 1:1. Из
+        # параметров исходной версии переносим всё, кроме прежнего text_overlay (будет свежий).
+        inherited = {k: v for k, v in source.gen_params_json.items() if k != "text_overlay"}
+        version = CardVersion(
+            id=uuid.uuid4(),
+            card_id=card.id,
+            version_no=_next_version_no(session, card.id),
+            image_s3_key=source.image_s3_key,
+            gen_params_json={**inherited, "feedback": feedback_meta},
+        )
+        session.add(version)
+        session.commit()
+        tkey = template_key or source.gen_params_json.get("text_overlay", {}).get("template")
+        text_result = run_card_text_overlay(session, version.id, template_key=tkey)
+        return {
+            "feedback_id": str(feedback.id),
+            "stage": stage.value,
+            "card_version_id": str(version.id),
+            "version_no": version.version_no,
+            "source_version_no": source.version_no,
+            "final_s3_key": text_result["final_s3_key"],
+            "unapplied_changes": len(unapplied),
+        }
+
+    # stage in {image, concept} — пересборка изображения [5] (новая версия внутри).
+    overrides = extract_image_overrides(parsed.changes)
+    mode = source.gen_params_json.get("mode", "edit")
+    image_result = run_card_image(
+        session,
+        card.id,
+        mode=mode,
+        model=overrides.get("model"),  # type: ignore[arg-type]
+        seed=overrides.get("seed"),  # type: ignore[arg-type]
+    )
+    version = session.get(CardVersion, uuid.UUID(image_result["card_version_id"]))
+    if version is not None:
+        version.gen_params_json = {**version.gen_params_json, "feedback": feedback_meta}
+        session.commit()
+    return {
+        "feedback_id": str(feedback.id),
+        "stage": stage.value,
+        "card_version_id": image_result["card_version_id"],
+        "version_no": image_result["version_no"],
+        "source_version_no": source.version_no,
+        "image_s3_key": image_result["image_s3_key"],
+        "mode": mode,
+        "cached": image_result["cached"],
+        "unapplied_changes": len(unapplied),
     }

@@ -215,6 +215,14 @@ class FeedbackRead(BaseModel):
     created_at: datetime
 
 
+class FeedbackRegenerateRequest(BaseModel):
+    """Параметры перегенерации адресуемой стадии по разобранному фидбэку (стадия [9])."""
+
+    #: Шаблон маркетплейса для повторного наложения текста (стадия [6]). None →
+    #: шаблон из исходной версии (если был), иначе дефолтный.
+    template_key: str | None = None
+
+
 # --- ProductAsset -----------------------------------------------------------
 
 AssetType = Literal["photo", "reference"]

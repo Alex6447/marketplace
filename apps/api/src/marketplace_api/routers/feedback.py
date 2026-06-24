@@ -20,18 +20,29 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from marketplace_api.schemas import FeedbackCreate, FeedbackRead
+from marketplace_api.enqueue import enqueue_feedback_regen
+from marketplace_api.schemas import (
+    FeedbackCreate,
+    FeedbackRead,
+    FeedbackRegenerateRequest,
+    JobRead,
+)
+from marketplace_shared import jobs as job_const
 from marketplace_shared.db import (
     Card,
     CardSet,
     CardVersion,
     Feedback,
+    Job,
     Project,
     get_session,
 )
 from marketplace_shared.pipeline import CardConcept, FeedbackInput, parse_feedback
 from marketplace_shared.providers import get_llm_provider
 from marketplace_shared.providers.errors import ProviderError
+
+#: Стадии, которые перегенерируются автоматически по фидбэку (остальные — вручную).
+_AUTO_REGEN_STAGES = frozenset({"concept", "image", "text"})
 
 router = APIRouter(tags=["feedback"])
 
@@ -99,6 +110,57 @@ async def submit_feedback(
     await session.commit()
     await session.refresh(feedback)
     return FeedbackRead.model_validate(feedback)
+
+
+@router.post(
+    "/feedback/{feedback_id}/regenerate",
+    response_model=JobRead,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def regenerate_from_feedback(
+    feedback_id: uuid.UUID, payload: FeedbackRegenerateRequest, session: SessionDep
+) -> JobRead:
+    """Поставить перегенерацию адресуемой стадии по разобранному фидбэку (стадия [9]).
+
+    Стадию определяет ``parsed_action.target_stage``: концепция [3]/изображение [5]
+    регенерируют изображение, текст [6] — только наложенный текст (товар сохраняется).
+    Стадии ideas/unknown требуют ручного решения → 409. Тяжёлую работу делает worker;
+    создаётся новая версия карточки (история сохраняется). Возвращает задачу (Job).
+    """
+    feedback = await session.get(Feedback, feedback_id)
+    if feedback is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Фидбэк не найден")
+    parsed = feedback.parsed_action_json
+    if not parsed:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Фидбэк не разобран (стадия [9]) — нечего перегенерировать",
+        )
+    target_stage = parsed.get("target_stage")
+    if target_stage not in _AUTO_REGEN_STAGES:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Стадия {target_stage!r} не перегенерируется автоматически "
+                "(требуется ручное решение менеджера)"
+            ),
+        )
+
+    job = Job(
+        type=job_const.JOB_FEEDBACK_REGEN,
+        status=job_const.JOB_PENDING,
+        payload_json={
+            "feedback_id": str(feedback_id),
+            "target_stage": target_stage,
+            "template_key": payload.template_key,
+        },
+    )
+    session.add(job)
+    await session.commit()
+    await session.refresh(job)
+
+    enqueue_feedback_regen(job.id, feedback_id, template_key=payload.template_key)
+    return JobRead.model_validate(job)
 
 
 @router.get(
