@@ -13,6 +13,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from .base import ImageProvider, LLMProvider, MattingProvider
+from .comfyui import ComfyUIImageProvider
 from .config import ProviderSettings, get_provider_settings
 from .echo import EchoImageProvider, EchoLLMProvider
 from .errors import ProviderNotConfigured, ProviderNotImplemented
@@ -44,6 +45,16 @@ _LLM_BUILDERS: dict[str, LLMBuilder] = {
 _IMAGE_BUILDERS: dict[str, ImageBuilder] = {
     "echo": lambda s: EchoImageProvider(model=s.image_model),
     "gemini": lambda s: GeminiImageProvider(api_key=s.gemini_api_key, model=s.image_model),
+    "comfyui": lambda s: ComfyUIImageProvider(
+        base_url=s.comfyui_url,
+        unet_name=s.comfyui_unet,
+        t5_name=s.comfyui_t5,
+        clip_l_name=s.comfyui_clip_l,
+        vae_name=s.comfyui_vae,
+        steps=s.comfyui_steps,
+        guidance=s.comfyui_guidance,
+        model=s.image_model,
+    ),
 }
 
 _MATTING_BUILDERS: dict[str, MattingBuilder] = {

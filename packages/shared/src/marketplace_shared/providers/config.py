@@ -42,6 +42,16 @@ class ProviderSettings(BaseSettings):
     gemini_api_key: str | None = None
     bfl_api_key: str | None = None  # Black Forest Labs — Flux.1 Kontext
 
+    # --- Локальный ComfyUI (image_provider='comfyui', Этап 6) ---
+    #: Адрес запущенного сервера ComfyUI и имена моделей в его папках models/*.
+    comfyui_url: str = "http://127.0.0.1:8188"
+    comfyui_unet: str = "flux1-kontext-dev-Q4_K_M.gguf"
+    comfyui_t5: str = "t5-v1_1-xxl-encoder-Q5_K_M.gguf"
+    comfyui_clip_l: str = "clip_l.safetensors"
+    comfyui_vae: str = "ae.safetensors"
+    comfyui_steps: int = 20
+    comfyui_guidance: float = 2.5
+
     # --- Matting (стадия [4] — удаление фона/маска) ---
     #: 'simple' — офлайн-кеинг по цвету фона (Pillow, без GPU). Локальные модели
     #: 'birefnet'/'sam2' подключаются на Этапе 6.

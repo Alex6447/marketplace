@@ -232,3 +232,10 @@ pnpm-debug.log*
 
 # --- Docker / локальные данные ---
 .docker-data/
+
+# --- Локальные данные/артефакты сравнения подходов (Этап 2, scripts/compare_approaches.py) ---
+# Фото товаров и сгенерированные результаты не коммитим (объём + лицензии изображений).
+products/
+products_raw/
+compare_out/
+compare_smoke/
