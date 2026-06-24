@@ -343,6 +343,15 @@ export const regenerateFromFeedback = (feedbackId: string, templateKey?: string 
     body: JSON.stringify({ template_key: templateKey ?? null }),
   });
 
+// --- Экспорт / скачивание ---------------------------------------------------
+
+/** Прямая ссылка на скачивание готового варианта версии (PNG, стадия [6]/[5]). */
+export const cardVersionDownloadUrl = (versionId: string) =>
+  `${API}/card-versions/${versionId}/download`;
+
+/** Прямая ссылка на скачивание комплекта набора одним zip. */
+export const cardSetExportUrl = (cardSetId: string) => `${API}/card-sets/${cardSetId}/export`;
+
 // --- Задачи -----------------------------------------------------------------
 
 export const getJob = (jobId: string) => request<Job>(`/jobs/${jobId}`);

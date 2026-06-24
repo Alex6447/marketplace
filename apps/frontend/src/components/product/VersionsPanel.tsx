@@ -5,11 +5,13 @@ import {
   ChevronDown,
   ChevronUp,
   CircleSlash,
+  Download,
   Info,
   ImageOff,
   Layers,
   Lock,
   MessageSquare,
+  Package,
   RefreshCw,
   Send,
   ShieldCheck,
@@ -30,6 +32,8 @@ import { EmptyState, ErrorRow, Spinner } from "@/components/ui/states";
 import { StageHeader } from "@/components/product/StageHeader";
 import {
   ApiError,
+  cardSetExportUrl,
+  cardVersionDownloadUrl,
   generateCardImage,
   getCards,
   listCardVersions,
@@ -128,6 +132,7 @@ export function VersionsPanel({
   });
 
   const list = cards.data?.cards ?? [];
+  const cardSetId = cards.data?.id;
 
   return (
     <Panel as="section" className="p-5 sm:p-6">
@@ -135,6 +140,16 @@ export function VersionsPanel({
         numeral="5–9"
         title="Студия карточек"
         subtitle="Генерация изображения [5], наложение текста [6] и правки по фидбэку [9] — с историей версий"
+        action={
+          list.length > 0 && cardSetId ? (
+            <a href={cardSetExportUrl(cardSetId)} download>
+              <Button variant="outline" size="sm">
+                <Package className="h-3.5 w-3.5" />
+                Скачать комплект
+              </Button>
+            </a>
+          ) : null
+        }
       />
 
       {!hasConcepts ? (
@@ -308,13 +323,23 @@ function VersionCard({ version, cardId }: { version: CardVersion; cardId: string
         {mode ? <RoleTag role={mode} /> : null}
         {hasFinal ? <Badge tone="success">с текстом</Badge> : null}
         {cached ? <Badge tone="muted">кэш</Badge> : null}
-        {version.qa_report ? (
-          <span className="ml-auto">
+        <span className="ml-auto flex items-center gap-2">
+          {version.qa_report ? (
             <QaPill status={version.qa_report.status}>
               QA · {QA_META[version.qa_report.status].label}
             </QaPill>
-          </span>
-        ) : null}
+          ) : null}
+          {src ? (
+            <a
+              href={cardVersionDownloadUrl(version.id)}
+              download
+              title="Скачать PNG"
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <Download className="h-3.5 w-3.5" />
+            </a>
+          ) : null}
+        </span>
       </div>
 
       <Thumb src={src} alt={`Версия ${version.version_no}`} />
