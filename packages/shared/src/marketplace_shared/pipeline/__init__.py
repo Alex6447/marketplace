@@ -68,6 +68,11 @@ from .imagegen import (
     generate_card_background,
     generate_card_image,
 )
+from .qa import (
+    QaCheck,
+    QaReport,
+    build_qa_report,
+)
 from .regen import (
     apply_changes_to_concept,
     extract_image_overrides,
@@ -103,6 +108,10 @@ __all__ = [
     "concept_to_render_blocks",
     "build_card_render_request",
     "render_card_text",
+    # стадия [7] — авто-QA
+    "QaCheck",
+    "QaReport",
+    "build_qa_report",
     # стадия [9] — разбор фидбэка
     "FeedbackInput",
     "ParsedFeedback",

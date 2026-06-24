@@ -1,17 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  AlertTriangle,
+  CheckCircle2,
   ChevronDown,
   ChevronUp,
+  CircleSlash,
+  Info,
   ImageOff,
   Layers,
   Lock,
   MessageSquare,
   RefreshCw,
   Send,
+  ShieldCheck,
   Sparkles,
   Type,
   Wand2,
+  XCircle,
 } from "lucide-react";
+import type { ComponentType, ReactNode } from "react";
 import { useState } from "react";
 
 import { Badge, RoleTag } from "@/components/ui/badge";
@@ -30,6 +37,7 @@ import {
   MARKETPLACE_TEMPLATES,
   regenerateFromFeedback,
   renderCardText,
+  runQa,
   submitFeedback,
   waitForJob,
   type Card,
@@ -38,6 +46,9 @@ import {
   type Feedback,
   type FeedbackStage,
   type Job,
+  type QaCheck,
+  type QaReport,
+  type QaStatus,
 } from "@/lib/api";
 import { describeError } from "@/views/ProjectsView";
 import { cn } from "@/lib/utils";
@@ -56,6 +67,50 @@ const STAGE_LABELS: Record<FeedbackStage, string> = {
 function str(record: Record<string, unknown>, key: string): string | null {
   const v = record[key];
   return typeof v === "string" ? v : null;
+}
+
+// Оформление статуса QA-проверки: классы пилюли, иконка, подпись.
+const QA_META: Record<
+  QaStatus,
+  { cls: string; icon: ComponentType<{ className?: string }>; label: string }
+> = {
+  pass: {
+    cls: "bg-[hsl(var(--success)/0.15)] text-[hsl(var(--success))] border-[hsl(var(--success)/0.3)]",
+    icon: CheckCircle2,
+    label: "пройдено",
+  },
+  warn: {
+    cls: "bg-primary/15 text-primary border-primary/30",
+    icon: AlertTriangle,
+    label: "замечания",
+  },
+  fail: {
+    cls: "bg-destructive/15 text-destructive border-destructive/30",
+    icon: XCircle,
+    label: "провал",
+  },
+  info: { cls: "bg-muted text-muted-foreground border-border", icon: Info, label: "инфо" },
+  skipped: {
+    cls: "bg-muted text-muted-foreground border-border",
+    icon: CircleSlash,
+    label: "пропущено",
+  },
+};
+
+function QaPill({ status, children }: { status: QaStatus; children?: ReactNode }) {
+  const meta = QA_META[status];
+  const Icon = meta.icon;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[0.66rem] font-medium",
+        meta.cls,
+      )}
+    >
+      <Icon className="h-3 w-3" />
+      {children ?? meta.label}
+    </span>
+  );
 }
 
 export function VersionsPanel({
@@ -248,11 +303,18 @@ function VersionCard({ version, cardId }: { version: CardVersion; cardId: string
 
   return (
     <div className="flex flex-col overflow-hidden rounded-md border border-border bg-card/30">
-      <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+      <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
         <span className="font-mono text-xs text-muted-foreground">v{version.version_no}</span>
         {mode ? <RoleTag role={mode} /> : null}
         {hasFinal ? <Badge tone="success">с текстом</Badge> : null}
         {cached ? <Badge tone="muted">кэш</Badge> : null}
+        {version.qa_report ? (
+          <span className="ml-auto">
+            <QaPill status={version.qa_report.status}>
+              QA · {QA_META[version.qa_report.status].label}
+            </QaPill>
+          </span>
+        ) : null}
       </div>
 
       <Thumb src={src} alt={`Версия ${version.version_no}`} />
@@ -289,6 +351,7 @@ function VersionCard({ version, cardId }: { version: CardVersion; cardId: string
       {expanded ? (
         <div className="space-y-4 border-t border-border p-3">
           <TextOverlayControls version={version} cardId={cardId} hasFinal={hasFinal} />
+          <QaControls version={version} cardId={cardId} />
           <FeedbackBlock version={version} cardId={cardId} />
         </div>
       ) : null}
@@ -372,6 +435,76 @@ function TextOverlayControls({
       ) : null}
       {render.isError ? <ErrorRow message={describeError(render.error)} /> : null}
     </div>
+  );
+}
+
+function QaControls({ version, cardId }: { version: CardVersion; cardId: string }) {
+  const qc = useQueryClient();
+  const check = useMutation({
+    mutationFn: () => runQa(version.id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["versions", cardId] }),
+  });
+  // Свежий отчёт мутации приоритетнее сохранённого в версии.
+  const report: QaReport | null = check.data ?? version.qa_report;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="flex items-center gap-1.5 font-mono text-[0.64rem] uppercase tracking-[0.14em] text-muted-foreground">
+          <ShieldCheck className="h-3 w-3" /> Авто-QA [7]
+        </p>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => check.mutate()}
+          disabled={check.isPending}
+        >
+          {check.isPending ? <Spinner /> : <ShieldCheck className="h-3.5 w-3.5" />}
+          {report ? "Перепроверить" : "Проверить качество"}
+        </Button>
+      </div>
+      {check.isError ? <ErrorRow message={describeError(check.error)} /> : null}
+      {report ? <QaReportView report={report} /> : null}
+    </div>
+  );
+}
+
+function QaReportView({ report }: { report: QaReport }) {
+  return (
+    <div className="space-y-2 rounded-md border border-border bg-background/40 p-2.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <QaPill status={report.status} />
+        <span className="text-xs text-muted-foreground">{report.summary}</span>
+      </div>
+      <ul className="space-y-1.5">
+        {report.checks.map((c) => (
+          <QaCheckRow key={c.name} check={c} />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function QaCheckRow({ check }: { check: QaCheck }) {
+  const Icon = QA_META[check.status].icon;
+  const cls = QA_META[check.status].cls;
+  return (
+    <li className="flex items-start gap-2 text-xs">
+      <span
+        className={cn("mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border", cls)}
+      >
+        <Icon className="h-2.5 w-2.5" />
+      </span>
+      <span className="min-w-0">
+        <span className="font-medium text-foreground">{check.title}</span>
+        {check.score != null ? (
+          <span className="ml-1.5 font-mono text-[0.62rem] text-muted-foreground">
+            {check.score}
+          </span>
+        ) : null}
+        <span className="block text-muted-foreground">{check.detail}</span>
+      </span>
+    </li>
   );
 }
 

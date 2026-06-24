@@ -179,6 +179,16 @@ class CardVersionRead(BaseModel):
     image_url: str | None = None
     #: Presigned-ссылка на финал с наложенным текстом (стадия [6]); None, пока нет.
     final_url: str | None = None
+    #: Отчёт авто-QA (стадия [7]); None, пока проверка не запускалась.
+    qa_report: dict[str, Any] | None = Field(default=None, validation_alias="qa_report_json")
+
+
+class QaRunRequest(BaseModel):
+    """Параметры запуска авто-QA версии карточки — стадия [7]."""
+
+    #: Шаблон маркетплейса для проверки размеров/safe-zone/белого фона. None →
+    #: шаблон из стадии [6] версии (если был), иначе дефолтный.
+    template_key: str | None = None
 
 
 class CardTextRenderRequest(BaseModel):

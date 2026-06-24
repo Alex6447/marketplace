@@ -140,6 +140,26 @@ export interface Job {
 
 export type CardImageMode = "edit" | "composite";
 
+export type QaStatus = "pass" | "warn" | "fail" | "info" | "skipped";
+
+export interface QaCheck {
+  name: string;
+  title: string;
+  status: QaStatus;
+  detail: string;
+  score: number | null;
+}
+
+/** Отчёт авто-QA версии карточки (стадия [7]). */
+export interface QaReport {
+  status: QaStatus;
+  summary: string;
+  checks: QaCheck[];
+  width: number;
+  height: number;
+  template_key: string;
+}
+
 /** Версия карточки: изображение стадии [5] (+ финал с текстом стадии [6]). */
 export interface CardVersion {
   id: string;
@@ -151,6 +171,7 @@ export interface CardVersion {
   created_at: string;
   image_url: string | null;
   final_url: string | null;
+  qa_report: QaReport | null;
 }
 
 export type FeedbackStage = "concept" | "image" | "text" | "ideas" | "unknown";
@@ -291,6 +312,17 @@ export const renderCardText = (versionId: string, templateKey?: string | null) =
     method: "POST",
     body: JSON.stringify({ template_key: templateKey ?? null }),
   });
+
+// --- Стадия [7]: авто-QA ----------------------------------------------------
+
+/** Прогнать авто-QA версии карточки и получить отчёт (стадия [7], синхронно). */
+export const runQa = (versionId: string, templateKey?: string | null) =>
+  request<QaReport>(`/card-versions/${versionId}/qa`, {
+    method: "POST",
+    body: JSON.stringify({ template_key: templateKey ?? null }),
+  });
+
+export const getQa = (versionId: string) => request<QaReport>(`/card-versions/${versionId}/qa`);
 
 // --- Стадия [9]: фидбэк и перегенерация -------------------------------------
 
