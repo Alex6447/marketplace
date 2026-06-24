@@ -51,10 +51,12 @@ class ProviderSettings(BaseSettings):
     comfyui_vae: str = "ae.safetensors"
     comfyui_steps: int = 20
     comfyui_guidance: float = 2.5
+    #: Имя модели BiRefNet для matting='birefnet' (нода ComfyUI_BiRefNet_ll авто-скачает).
+    comfyui_birefnet_model: str = "General"
 
     # --- Matting (стадия [4] — удаление фона/маска) ---
-    #: 'simple' — офлайн-кеинг по цвету фона (Pillow, без GPU). Локальные модели
-    #: 'birefnet'/'sam2' подключаются на Этапе 6.
+    #: 'simple' — офлайн-кеинг по цвету фона (Pillow, без GPU). 'birefnet' — SOTA-вырез
+    #: через локальный ComfyUI (Этап 6, нужен запущенный сервер). 'sam2' — позже.
     matting_provider: str = "simple"
     matting_model: str | None = None
 

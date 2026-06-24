@@ -7,14 +7,24 @@ Flux Kontext (edit) и Flux txt2img (generate). Реальные сетевые 
 
 from __future__ import annotations
 
-import pytest
+import io
 
-from marketplace_shared.providers.comfyui import ComfyUIImageProvider, _parse_size
+import pytest
+from PIL import Image
+
+from marketplace_shared.providers.comfyui import (
+    BiRefNetMattingProvider,
+    ComfyUIImageProvider,
+    _build_mask_and_cutout,
+    _parse_size,
+)
 from marketplace_shared.providers.config import ProviderSettings
 from marketplace_shared.providers.errors import ProviderError
 from marketplace_shared.providers.registry import (
     available_image_providers,
+    available_matting_providers,
     get_image_provider,
+    get_matting_provider,
 )
 
 
@@ -81,3 +91,46 @@ def test_build_generate_workflow_structure() -> None:
     # В txt2img нет узлов загрузки/кодирования входного изображения.
     assert "img" not in wf
     assert "scale" not in wf
+
+
+def test_birefnet_registered_in_registry() -> None:
+    assert "birefnet" in available_matting_providers()
+    provider = get_matting_provider(ProviderSettings(matting_provider="birefnet"))
+    assert isinstance(provider, BiRefNetMattingProvider)
+    assert provider.name == "birefnet"
+
+
+def test_birefnet_model_from_settings() -> None:
+    s = ProviderSettings(matting_provider="birefnet", matting_model="Matting")
+    provider = get_matting_provider(s)
+    assert provider._model_name == "Matting"  # matting_model имеет приоритет
+
+
+def test_build_mask_workflow_structure() -> None:
+    provider = BiRefNetMattingProvider()
+    wf = provider.build_mask_workflow("photo.png")
+    assert wf["model"]["class_type"] == "AutoDownloadBiRefNetModel"
+    assert wf["model"]["inputs"]["model_name"] == "General"
+    assert wf["mask"]["class_type"] == "GetMaskByBiRefNet"
+    assert wf["mask"]["inputs"]["images"] == ["img", 0]
+    assert wf["m2i"]["class_type"] == "MaskToImage"
+    assert wf["save"]["inputs"]["images"] == ["m2i", 0]
+
+
+def test_build_mask_and_cutout() -> None:
+    # Источник 4×4 красный; маска: левая половина белая (товар), правая чёрная (фон).
+    src = Image.new("RGB", (4, 4), (255, 0, 0))
+    mask = Image.new("L", (4, 4), 0)
+    for y in range(4):
+        for x in range(2):
+            mask.putpixel((x, y), 255)
+    src_buf, mask_buf = io.BytesIO(), io.BytesIO()
+    src.save(src_buf, format="PNG")
+    mask.save(mask_buf, format="PNG")
+
+    mask_norm, cutout = _build_mask_and_cutout(src_buf.getvalue(), mask_buf.getvalue())
+    out = Image.open(io.BytesIO(cutout)).convert("RGBA")
+    assert out.size == (4, 4)
+    assert out.getpixel((0, 0))[3] == 255  # товар — непрозрачный
+    assert out.getpixel((3, 0))[3] == 0  # фон — прозрачный
+    assert Image.open(io.BytesIO(mask_norm)).mode == "L"

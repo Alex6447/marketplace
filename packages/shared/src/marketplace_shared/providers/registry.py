@@ -13,7 +13,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from .base import ImageProvider, LLMProvider, MattingProvider
-from .comfyui import ComfyUIImageProvider
+from .comfyui import BiRefNetMattingProvider, ComfyUIImageProvider
 from .config import ProviderSettings, get_provider_settings
 from .echo import EchoImageProvider, EchoLLMProvider
 from .errors import ProviderNotConfigured, ProviderNotImplemented
@@ -59,7 +59,10 @@ _IMAGE_BUILDERS: dict[str, ImageBuilder] = {
 
 _MATTING_BUILDERS: dict[str, MattingBuilder] = {
     "simple": lambda s: SimpleMattingProvider(model=s.matting_model),
-    "birefnet": _local_matting_not_implemented("birefnet"),
+    "birefnet": lambda s: BiRefNetMattingProvider(
+        base_url=s.comfyui_url,
+        model_name=s.matting_model or s.comfyui_birefnet_model,
+    ),
     "sam2": _local_matting_not_implemented("sam2"),
 }
 
