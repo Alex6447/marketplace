@@ -35,6 +35,11 @@ class ProviderSettings(BaseSettings):
     llm_provider: str = "echo"
     llm_model: str | None = None  # None → дефолтная модель выбранного провайдера
     anthropic_api_key: str | None = None
+    #: Локальный Ollama (llm_provider='ollama', Этап 6). Сервер должен быть запущен.
+    #: NB: на Windows порт 11434 может попасть в зарезервированный диапазон — тогда
+    #: поднимать Ollama на другом порту (напр. 11500) и указать его здесь.
+    ollama_url: str = "http://127.0.0.1:11434"
+    ollama_model: str = "qwen2.5:7b"
 
     # --- Image ---
     image_provider: str = "echo"

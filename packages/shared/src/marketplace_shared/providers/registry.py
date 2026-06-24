@@ -19,6 +19,7 @@ from .echo import EchoImageProvider, EchoLLMProvider
 from .errors import ProviderNotConfigured, ProviderNotImplemented
 from .hosted import AnthropicLLMProvider, GeminiImageProvider
 from .matting import SimpleMattingProvider
+from .ollama import OllamaLLMProvider
 
 LLMBuilder = Callable[[ProviderSettings], LLMProvider]
 ImageBuilder = Callable[[ProviderSettings], ImageProvider]
@@ -40,6 +41,9 @@ def _local_matting_not_implemented(name: str) -> MattingBuilder:
 _LLM_BUILDERS: dict[str, LLMBuilder] = {
     "echo": lambda s: EchoLLMProvider(model=s.llm_model),
     "anthropic": lambda s: AnthropicLLMProvider(api_key=s.anthropic_api_key, model=s.llm_model),
+    "ollama": lambda s: OllamaLLMProvider(
+        base_url=s.ollama_url, model=s.llm_model or s.ollama_model
+    ),
 }
 
 _IMAGE_BUILDERS: dict[str, ImageBuilder] = {
