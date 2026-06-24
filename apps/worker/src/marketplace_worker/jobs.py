@@ -43,6 +43,17 @@ def mark_success(session: Session, job: Job, result: dict) -> None:
     session.commit()
 
 
+def mark_retrying(session: Session, job: Job, error: str, attempt: int) -> None:
+    """Пометить задачу как ожидающую повтора (транзиентная ошибка провайдера).
+
+    Не терминальный статус: SSE-поток продолжается, прогресс сохраняется. ``attempt``
+    — номер предстоящей попытки (для наблюдаемости).
+    """
+    job.status = job_const.JOB_RETRY
+    job.error = f"попытка {attempt}: {error}"
+    session.commit()
+
+
 def mark_failure(session: Session, job: Job, error: str) -> None:
     """Завершить задачу ошибкой: статус failure, текст ошибки."""
     job.status = job_const.JOB_FAILURE

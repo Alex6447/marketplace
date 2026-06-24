@@ -10,6 +10,7 @@ from __future__ import annotations
 # --- Статусы задачи -------------------------------------------------------- #
 JOB_PENDING = "pending"
 JOB_RUNNING = "running"
+JOB_RETRY = "retry"
 JOB_SUCCESS = "success"
 JOB_FAILURE = "failure"
 

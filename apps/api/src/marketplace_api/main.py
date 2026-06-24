@@ -26,6 +26,7 @@ from marketplace_api.routers import (
     projects,
     qa,
 )
+from marketplace_shared.log import configure_logging
 
 # Windows: async-драйвер psycopg несовместим с ProactorEventLoop (дефолт на Windows).
 # Переключаем политику на SelectorEventLoop ДО создания цикла uvicorn'ом. На Linux
@@ -33,6 +34,7 @@ from marketplace_api.routers import (
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
+configure_logging(service="api")
 settings = get_settings()
 
 app = FastAPI(title="Marketplace Cards API", version=__version__)

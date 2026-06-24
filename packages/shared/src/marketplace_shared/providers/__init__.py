@@ -27,7 +27,12 @@ from .contracts import (
     Usage,
 )
 from .echo import EchoImageProvider, EchoLLMProvider
-from .errors import ProviderError, ProviderNotConfigured, ProviderNotImplemented
+from .errors import (
+    ProviderError,
+    ProviderNotConfigured,
+    ProviderNotImplemented,
+    TransientProviderError,
+)
 from .hosted import AnthropicLLMProvider, GeminiImageProvider
 from .matting import SimpleMattingProvider
 from .registry import (
@@ -75,4 +80,5 @@ __all__ = [
     "ProviderError",
     "ProviderNotConfigured",
     "ProviderNotImplemented",
+    "TransientProviderError",
 ]

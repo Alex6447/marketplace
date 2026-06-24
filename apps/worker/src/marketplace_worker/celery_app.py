@@ -12,7 +12,13 @@ import os
 
 from celery import Celery
 
+from marketplace_shared.log import configure_logging
+
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+
+# Единый формат логов worker'а (см. docs/plan.md, Этап 5). Не даём Celery перехватить
+# корневой логгер, чтобы наш формат/уровень применялись к логам стадий.
+configure_logging(service="worker")
 
 
 def _truthy(value: str | None) -> bool:
@@ -27,6 +33,7 @@ app.conf.update(
     task_track_started=True,
     task_always_eager=_truthy(os.environ.get("CELERY_TASK_ALWAYS_EAGER")),
     task_eager_propagates=True,
+    worker_hijack_root_logger=False,
 )
 
 # Регистрируем задачи в приложении (импорт ради side-effect декораторов @app.task).

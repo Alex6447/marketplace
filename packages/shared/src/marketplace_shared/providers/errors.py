@@ -27,3 +27,13 @@ class ProviderNotImplemented(ProviderError, NotImplementedError):
     сетевые вызовы наполняются в пунктах «Подключение Claude API» и
     «Подключение editing-API» (см. docs/plan.md, раздел 7, Этап 0).
     """
+
+
+class TransientProviderError(ProviderError):
+    """Временная ошибка провайдера — имеет смысл повторить.
+
+    Сетевые сбои, таймауты, ответы 429/5xx внешнего API. В отличие от
+    :class:`ProviderNotConfigured` (ошибка конфигурации) и обычной
+    :class:`ProviderError` (логическая/постоянная), эту ошибку Celery-задача
+    повторяет с экспоненциальным backoff (см. worker, docs/plan.md, Этап 5).
+    """
