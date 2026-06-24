@@ -5,9 +5,10 @@ import { AppShell } from "@/components/AppShell";
 import { AssetsPanel } from "@/components/product/AssetsPanel";
 import { ConceptsPanel } from "@/components/product/ConceptsPanel";
 import { IdeasPanel } from "@/components/product/IdeasPanel";
+import { VersionsPanel } from "@/components/product/VersionsPanel";
 import { Panel } from "@/components/ui/panel";
 import { ErrorRow, LoadingRow } from "@/components/ui/states";
-import { ApiError, getIdeas, getProduct, getProject } from "@/lib/api";
+import { ApiError, getCards, getIdeas, getProduct, getProject } from "@/lib/api";
 import { describeError } from "@/views/ProjectsView";
 
 export function ProductView({ productId }: { productId: string }) {
@@ -26,6 +27,13 @@ export function ProductView({ productId }: { productId: string }) {
     retry: (count, err) => !(err instanceof ApiError && err.status === 404) && count < 2,
   });
   const hasIdeas = !!ideas.data;
+  const cards = useQuery({
+    queryKey: ["cards", productId],
+    queryFn: () => getCards(productId),
+    enabled: hasIdeas,
+    retry: (count, err) => !(err instanceof ApiError && err.status === 404) && count < 2,
+  });
+  const hasConcepts = !!cards.data && cards.data.cards.length > 0;
 
   const crumbs = [
     { label: "проекты", to: { name: "projects" as const } },
@@ -64,6 +72,7 @@ export function ProductView({ productId }: { productId: string }) {
 
           <IdeasPanel productId={productId} />
           <ConceptsPanel productId={productId} hasIdeas={hasIdeas} />
+          <VersionsPanel productId={productId} hasConcepts={hasConcepts} />
         </div>
       ) : null}
     </AppShell>

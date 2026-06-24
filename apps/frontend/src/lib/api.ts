@@ -122,6 +122,74 @@ export interface CardSet {
   cards: Card[];
 }
 
+// --- Версии, задачи и фидбэк (стадии [5]/[6]/[9]) ---------------------------
+
+export type JobStatus = "pending" | "running" | "success" | "failure";
+
+/** Фоновая задача генерации (таблица Job) — статус и прогресс стадий [4]/[5]/[6]/[9]. */
+export interface Job {
+  id: string;
+  type: string;
+  status: JobStatus;
+  progress: number;
+  stage: string | null;
+  result_json: Record<string, unknown> | null;
+  error: string | null;
+  created_at: string;
+}
+
+export type CardImageMode = "edit" | "composite";
+
+/** Версия карточки: изображение стадии [5] (+ финал с текстом стадии [6]). */
+export interface CardVersion {
+  id: string;
+  card_id: string;
+  version_no: number;
+  image_s3_key: string | null;
+  final_s3_key: string | null;
+  gen_params_json: Record<string, unknown>;
+  created_at: string;
+  image_url: string | null;
+  final_url: string | null;
+}
+
+export type FeedbackStage = "concept" | "image" | "text" | "ideas" | "unknown";
+export type FeedbackAction = "adjust" | "regenerate";
+export type ChangeOperation = "set" | "add" | "remove" | "modify";
+
+export interface FeedbackChange {
+  field: string;
+  operation: ChangeOperation;
+  instruction: string | null;
+  value: unknown;
+}
+
+/** Разбор свободного фидбэка LLM (стадия [9]): действие + стадия + дельты. */
+export interface ParsedFeedback {
+  summary: string;
+  target_stage: FeedbackStage;
+  action: FeedbackAction;
+  changes: FeedbackChange[];
+  confidence: number;
+  notes: string | null;
+}
+
+export interface Feedback {
+  id: string;
+  card_version_id: string;
+  text: string;
+  parsed_action: ParsedFeedback | null;
+  created_at: string;
+}
+
+/** Шаблоны маркетплейсов (стадия [6]) — должны совпадать с textrender/templates.py. */
+export const MARKETPLACE_TEMPLATES: { key: string; label: string }[] = [
+  { key: "ozon-main", label: "Ozon · основная (1:1)" },
+  { key: "ozon-promo", label: "Ozon · промо (3:4)" },
+  { key: "wildberries-main", label: "Wildberries · основная (3:4)" },
+  { key: "yandex_market-main", label: "Яндекс Маркет · основная (1:1)" },
+];
+
 // --- Запросы ----------------------------------------------------------------
 
 /** Readiness-проба API (`GET /api/health`). */
@@ -197,3 +265,80 @@ export const generateCards = (productId: string, force = false) =>
     method: "POST",
     body: JSON.stringify({ force }),
   });
+
+// --- Стадия [5]: генерация изображения карточки -----------------------------
+
+export interface CardImageGenerateBody {
+  mode?: CardImageMode;
+  model?: string | null;
+  seed?: number | null;
+  size?: string | null;
+  use_references?: boolean;
+}
+
+/** Поставить генерацию изображения карточки в очередь (стадия [5]) → Job (202). */
+export const generateCardImage = (cardId: string, body: CardImageGenerateBody = {}) =>
+  request<Job>(`/cards/${cardId}/generate`, { method: "POST", body: JSON.stringify(body) });
+
+export const listCardVersions = (cardId: string) =>
+  request<CardVersion[]>(`/cards/${cardId}/versions`);
+
+// --- Стадия [6]: наложение текста -------------------------------------------
+
+/** Поставить наложение текста концепции на версию карточки в очередь (стадия [6]) → Job. */
+export const renderCardText = (versionId: string, templateKey?: string | null) =>
+  request<Job>(`/card-versions/${versionId}/text`, {
+    method: "POST",
+    body: JSON.stringify({ template_key: templateKey ?? null }),
+  });
+
+// --- Стадия [9]: фидбэк и перегенерация -------------------------------------
+
+/** Принять фидбэк менеджера к версии и разобрать его LLM (стадия [9]). */
+export const submitFeedback = (versionId: string, text: string) =>
+  request<Feedback>(`/card-versions/${versionId}/feedback`, {
+    method: "POST",
+    body: JSON.stringify({ text }),
+  });
+
+export const listFeedback = (versionId: string) =>
+  request<Feedback[]>(`/card-versions/${versionId}/feedback`);
+
+/** Поставить перегенерацию адресуемой фидбэком стадии в очередь (стадия [9]) → Job. */
+export const regenerateFromFeedback = (feedbackId: string, templateKey?: string | null) =>
+  request<Job>(`/feedback/${feedbackId}/regenerate`, {
+    method: "POST",
+    body: JSON.stringify({ template_key: templateKey ?? null }),
+  });
+
+// --- Задачи -----------------------------------------------------------------
+
+export const getJob = (jobId: string) => request<Job>(`/jobs/${jobId}`);
+
+const TERMINAL_STATUSES: ReadonlySet<JobStatus> = new Set(["success", "failure"]);
+
+/**
+ * Дождаться завершения фоновой задачи, опрашивая `GET /jobs/{id}`.
+ *
+ * SSE (`/jobs/{id}/events`) хорош для живого прогресса, но fetch без EventSource
+ * усложняет код; для UI достаточно короткого опроса. `onProgress` зовётся на
+ * каждое чтение. При статусе failure бросает ошибку с текстом из задачи.
+ */
+export async function waitForJob(
+  jobId: string,
+  onProgress?: (job: Job) => void,
+  { intervalMs = 800, maxAttempts = 300 }: { intervalMs?: number; maxAttempts?: number } = {},
+): Promise<Job> {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const job = await getJob(jobId);
+    onProgress?.(job);
+    if (TERMINAL_STATUSES.has(job.status)) {
+      if (job.status === "failure") {
+        throw new ApiError(500, job.error || "Задача завершилась ошибкой");
+      }
+      return job;
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  throw new ApiError(504, "Задача не завершилась за отведённое время");
+}
