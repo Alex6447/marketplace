@@ -15,7 +15,7 @@
 ![License](https://img.shields.io/badge/license-proprietary-lightgrey)
 ![Status](https://img.shields.io/badge/status-🚧%20в%20разработке-orange)
 
-> 🚧 **Проект в активной разработке.** README описывает целевой продукт; часть функциональности и команд из раздела «Быстрый старт» появится по мере реализации (см. план в [docs/plan.md](docs/plan.md)).
+> 🚧 **Проект в активной разработке.** README описывает целевой продукт; часть функциональности и команд из раздела «Быстрый старт» появится по мере реализации (см. план в [docs_marketplace/plan.md](docs_marketplace/plan.md)).
 
 </div>
 
@@ -162,7 +162,7 @@ cd frontend && pnpm install && pnpm dev
 marketplace/
 ├── backend/            # FastAPI, пайплайн, провайдеры, Celery-воркеры
 ├── frontend/           # React + TypeScript SPA
-├── docs/               # idea.md, plan.md — задача и план разработки
+├── docs_marketplace/               # idea.md, plan.md — задача и план разработки
 ├── docker-compose.yml  # api, worker, postgres, redis, minio
 ├── .env_example        # шаблон переменных окружения
 └── README.md
@@ -172,8 +172,8 @@ marketplace/
 
 ## 📚 Документация
 
-- [docs/idea.md](docs/idea.md) — постановка задачи.
-- [docs/plan.md](docs/plan.md) — архитектура, пайплайн, модель данных, поэтапный план.
+- [docs_marketplace/idea.md](docs_marketplace/idea.md) — постановка задачи.
+- [docs_marketplace/plan.md](docs_marketplace/plan.md) — архитектура, пайплайн, модель данных, поэтапный план.
 - [CLAUDE.md](CLAUDE.md) — контекст и соглашения проекта.
 
 ---

@@ -25,7 +25,7 @@ class ProviderNotImplemented(ProviderError, NotImplementedError):
 
     Каркас зафиксирован в пункте «Абстракции LLMProvider/ImageProvider», а реальные
     сетевые вызовы наполняются в пунктах «Подключение Claude API» и
-    «Подключение editing-API» (см. docs/plan.md, раздел 7, Этап 0).
+    «Подключение editing-API» (см. docs_marketplace/plan.md, раздел 7, Этап 0).
     """
 
 
@@ -35,5 +35,5 @@ class TransientProviderError(ProviderError):
     Сетевые сбои, таймауты, ответы 429/5xx внешнего API. В отличие от
     :class:`ProviderNotConfigured` (ошибка конфигурации) и обычной
     :class:`ProviderError` (логическая/постоянная), эту ошибку Celery-задача
-    повторяет с экспоненциальным backoff (см. worker, docs/plan.md, Этап 5).
+    повторяет с экспоненциальным backoff (см. worker, docs_marketplace/plan.md, Этап 5).
     """

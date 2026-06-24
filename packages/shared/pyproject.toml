@@ -15,7 +15,7 @@ dependencies = [
     "google-genai>=1.0",
     # Скачивание изображений по presigned-URL (MinIO/S3) во входах image-провайдера.
     "httpx>=0.27",
-    # ORM и драйвер БД — модель данных общая для api/worker (docs/plan.md, раздел 5).
+    # ORM и драйвер БД — модель данных общая для api/worker (docs_marketplace/plan.md, раздел 5).
     # psycopg (v3) обслуживает и async-движок приложения, и sync-движок Alembic
     # через единый диалект postgresql+psycopg — один драйвер на оба сценария.
     "sqlalchemy[asyncio]>=2.0",

@@ -7,7 +7,7 @@
         ImageEditRequest, ImageRef, get_image_provider,
     )
 
-См. docs/plan.md, раздел 4.1 (режимы hosted/local/hybrid) и раздел 7, Этап 0.
+См. docs_marketplace/plan.md, раздел 4.1 (режимы hosted/local/hybrid) и раздел 7, Этап 0.
 """
 
 from __future__ import annotations

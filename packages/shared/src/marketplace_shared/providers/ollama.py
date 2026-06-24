@@ -4,7 +4,7 @@
 пакет `shared`/тонкий API. Структурированный вывод (стадии [2] идеи, [3] концепции,
 [9] разбор фидбэка) — через нативный режим Ollama `format=<JSON Schema>`: модель отдаёт
 JSON, валидный по схеме (grammar-constrained decoding). Это та же роль, что у hosted
-Claude в `AnthropicLLMProvider`, но локально (vLLM/Ollama, docs/plan.md 4.1).
+Claude в `AnthropicLLMProvider`, но локально (vLLM/Ollama, docs_marketplace/plan.md 4.1).
 
 Развёртывание стенда — см. память `comfyui-local-stack` (на той же машине Ollama;
 порт по умолчанию 11434 на Windows может попадать в зарезервированный диапазон —

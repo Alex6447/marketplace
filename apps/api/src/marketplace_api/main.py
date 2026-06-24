@@ -2,7 +2,7 @@
 
 Конфиг через pydantic-settings, CORS для фронтенд-дашборда, роутеры под префиксом
 /api. CRUD проектов/товаров/ассетов (Этап 1) подключён; стадии генерации и jobs/SSE
-(docs/plan.md, раздел 6) добавляются на Этапах 2–5.
+(docs_marketplace/plan.md, раздел 6) добавляются на Этапах 2–5.
 """
 
 import asyncio
@@ -31,7 +31,7 @@ from marketplace_shared.log import configure_logging
 
 # Windows: async-драйвер psycopg несовместим с ProactorEventLoop (дефолт на Windows).
 # Переключаем политику на SelectorEventLoop ДО создания цикла uvicorn'ом. На Linux
-# (Docker) условие ложно — no-op. См. заметку к модели данных в docs/plan.md (Этап 1).
+# (Docker) условие ложно — no-op. См. заметку к модели данных в docs_marketplace/plan.md (Этап 1).
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 

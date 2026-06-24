@@ -1,4 +1,4 @@
-"""Celery-приложение воркера (docs/plan.md, раздел 2).
+"""Celery-приложение воркера (docs_marketplace/plan.md, раздел 2).
 
 Брокер и бэкенд — Redis. Стадии пайплайна оформлены как задачи в :mod:`marketplace_
 worker.tasks` (стадии [4]/[5]); многостадийные сборки выражаются Celery-примитивами
@@ -16,7 +16,7 @@ from marketplace_shared.log import configure_logging
 
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 
-# Единый формат логов worker'а (см. docs/plan.md, Этап 5). Не даём Celery перехватить
+# Единый формат логов worker'а (см. docs_marketplace/plan.md, Этап 5). Не даём Celery перехватить
 # корневой логгер, чтобы наш формат/уровень применялись к логам стадий.
 configure_logging(service="worker")
 

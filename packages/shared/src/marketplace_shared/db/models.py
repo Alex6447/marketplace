@@ -1,4 +1,4 @@
-"""ORM-модель данных (docs/plan.md, раздел 5).
+"""ORM-модель данных (docs_marketplace/plan.md, раздел 5).
 
 Сущности: проект → товары и наборы карточек → карточки → версии → фидбэк.
 Плюс служебная таблица :class:`Job` для отслеживания фоновых задач генерации.
@@ -190,7 +190,7 @@ class Feedback(Base, TimestampMixin):
 
 
 class Job(Base, TimestampMixin):
-    """Служебная запись фоновой задачи генерации (docs/plan.md, раздел 5)."""
+    """Служебная запись фоновой задачи генерации (docs_marketplace/plan.md, раздел 5)."""
 
     __tablename__ = "jobs"
 
@@ -199,7 +199,7 @@ class Job(Base, TimestampMixin):
     type: Mapped[str] = mapped_column(String(64), nullable=False)
     #: Статус: pending/running/success/failure/retry.
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending", index=True)
-    #: Прогресс задачи 0–100 (для SSE-потока стадии генерации, docs/plan.md, раздел 6).
+    #: Прогресс задачи 0–100 (для SSE-потока стадии генерации, docs_marketplace/plan.md, раздел 6).
     progress: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
     #: Текущая стадия задачи (человекочитаемая метка для UI/SSE), напр. "image_gen".
     stage: Mapped[str | None] = mapped_column(String(64), nullable=True)

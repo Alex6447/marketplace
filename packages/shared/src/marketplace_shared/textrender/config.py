@@ -2,7 +2,7 @@
 
 Выбор backend'а — ключ ``TEXT_RENDERER``. Дефолт ``pillow`` рассчитан на офлайн-старт
 (без браузера); основной режим ``playwright`` включается, когда поставлен extra
-``render`` тяжёлого воркера (docs/plan.md, 4.1 и раздел 7, Этап 3).
+``render`` тяжёлого воркера (docs_marketplace/plan.md, 4.1 и раздел 7, Этап 3).
 """
 
 from __future__ import annotations

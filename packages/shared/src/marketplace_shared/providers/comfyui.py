@@ -3,7 +3,7 @@
 Реализуют `ImageProvider` (стадия [5]) и `MattingProvider` (стадия [4]) поверх HTTP-API
 локального сервера ComfyUI, не таща тяжёлые ML-зависимости (torch/ComfyUI) в пакет
 `shared` или в тонкий API: общение идёт по сети (`/upload/image`, `/prompt`, `/history`,
-`/view`). Это сохраняет провайдеро-независимость (docs/plan.md, 4.1) — пайплайн зовёт
+`/view`). Это сохраняет провайдеро-независимость (docs_marketplace/plan.md, 4.1) — пайплайн зовёт
 `edit`/`generate`/`remove_background`, не зная, что под капотом ComfyUI.
 
 - `ComfyUIImageProvider.edit` — основной режим [5]: editing-модель Flux.1 Kontext по
