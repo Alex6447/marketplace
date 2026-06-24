@@ -23,6 +23,20 @@ from .cache import (
     get_pipeline_settings,
     stage_digest,
 )
+from .compare import (
+    APPROACH_COMPOSITE,
+    APPROACH_EDIT,
+    ApproachResult,
+    ComparisonReport,
+    ImageMetrics,
+    compare_product,
+    compute_metrics,
+    demo_concept,
+    recommend_default,
+    render_report_html,
+    run_composite_approach,
+    run_edit_approach,
+)
 from .concepts import (
     CardConcept,
     CardSetConcepts,
@@ -94,6 +108,19 @@ __all__ = [
     "ChangeOperation",
     "build_feedback_request",
     "parse_feedback",
+    # сравнение режимов стадии [5] (edit vs composite) — выбор дефолта
+    "APPROACH_EDIT",
+    "APPROACH_COMPOSITE",
+    "ImageMetrics",
+    "ApproachResult",
+    "ComparisonReport",
+    "compute_metrics",
+    "run_edit_approach",
+    "run_composite_approach",
+    "compare_product",
+    "recommend_default",
+    "render_report_html",
+    "demo_concept",
     # контент-адресуемый кэш стадий
     "PipelineSettings",
     "get_pipeline_settings",

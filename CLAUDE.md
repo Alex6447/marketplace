@@ -59,6 +59,7 @@
 - `uv run uvicorn marketplace_api.main:app --reload` — запустить тонкий API локально.
 - `uv run celery -A marketplace_worker.celery_app:app worker` — запустить воркер.
 - `uv sync --package marketplace-api` — окружение только тонкого API.
+- `uv run python scripts/compare_approaches.py --photos-dir ./products --concept concept.json` — харнесс сравнения режимов стадии [5] (edit vs composite): метрики сохранности товара/изменения фона + HTML-отчёт. Дефолт — офлайн echo/simple; реальное сравнение — с `IMAGE_PROVIDER=gemini GEMINI_API_KEY=...`.
 
 **Миграции БД (Alembic, конфиг в корне `alembic.ini`; URL берётся из `DATABASE_URL`):**
 - `uv run alembic upgrade head` — применить миграции к БД.
