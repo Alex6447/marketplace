@@ -191,6 +191,37 @@ class QaRunRequest(BaseModel):
     template_key: str | None = None
 
 
+# --- Учёт стоимости (наблюдаемость, Этап 5) ---------------------------------
+
+
+class CardCost(BaseModel):
+    """Стоимость генерации одной карточки набора (сумма по её версиям)."""
+
+    card_id: uuid.UUID
+    role: str
+    order: int
+    #: Число платных генераций изображения (стадия [5]) по версиям карточки.
+    image_generations: int
+    cost_usd: float
+
+
+class CostSummary(BaseModel):
+    """Сводка стоимости генерации набора карточек (риск «дорогая генерация»).
+
+    Учитывает платные вызовы image-генерации [5] по всем версиям набора. Текст [6]
+    рендерится детерминированно (без платы); стоимость LLM-стадий [2]/[3] не привязана
+    к версии и здесь не агрегируется.
+    """
+
+    card_set_id: uuid.UUID
+    total_cost_usd: float
+    currency: str = "USD"
+    image_generations: int
+    #: Хотя бы одна стоимость в сводке — оценка по таблице, а не факт от провайдера.
+    estimated: bool
+    by_card: list[CardCost]
+
+
 class CardTextRenderRequest(BaseModel):
     """Параметры наложения текста на версию карточки — стадия [6]."""
 

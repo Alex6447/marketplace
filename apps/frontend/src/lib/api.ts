@@ -352,6 +352,29 @@ export const cardVersionDownloadUrl = (versionId: string) =>
 /** Прямая ссылка на скачивание комплекта набора одним zip. */
 export const cardSetExportUrl = (cardSetId: string) => `${API}/card-sets/${cardSetId}/export`;
 
+// --- Учёт стоимости ---------------------------------------------------------
+
+export interface CardCost {
+  card_id: string;
+  role: string;
+  order: number;
+  image_generations: number;
+  cost_usd: number;
+}
+
+/** Сводка стоимости генерации набора (платные вызовы image-генерации [5]). */
+export interface CostSummary {
+  card_set_id: string;
+  total_cost_usd: number;
+  currency: string;
+  image_generations: number;
+  estimated: boolean;
+  by_card: CardCost[];
+}
+
+export const getCardSetCost = (cardSetId: string) =>
+  request<CostSummary>(`/card-sets/${cardSetId}/cost`);
+
 // --- Задачи -----------------------------------------------------------------
 
 export const getJob = (jobId: string) => request<Job>(`/jobs/${jobId}`);

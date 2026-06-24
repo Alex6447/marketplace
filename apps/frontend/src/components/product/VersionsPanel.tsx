@@ -5,6 +5,7 @@ import {
   ChevronDown,
   ChevronUp,
   CircleSlash,
+  Coins,
   Download,
   Info,
   ImageOff,
@@ -35,6 +36,7 @@ import {
   cardSetExportUrl,
   cardVersionDownloadUrl,
   generateCardImage,
+  getCardSetCost,
   getCards,
   listCardVersions,
   listFeedback,
@@ -142,12 +144,15 @@ export function VersionsPanel({
         subtitle="Генерация изображения [5], наложение текста [6] и правки по фидбэку [9] — с историей версий"
         action={
           list.length > 0 && cardSetId ? (
-            <a href={cardSetExportUrl(cardSetId)} download>
-              <Button variant="outline" size="sm">
-                <Package className="h-3.5 w-3.5" />
-                Скачать комплект
-              </Button>
-            </a>
+            <div className="flex items-center gap-2">
+              <CostBadge cardSetId={cardSetId} />
+              <a href={cardSetExportUrl(cardSetId)} download>
+                <Button variant="outline" size="sm">
+                  <Package className="h-3.5 w-3.5" />
+                  Скачать комплект
+                </Button>
+              </a>
+            </div>
           ) : null
         }
       />
@@ -179,6 +184,24 @@ export function VersionsPanel({
   );
 }
 
+function CostBadge({ cardSetId }: { cardSetId: string }) {
+  const cost = useQuery({
+    queryKey: ["cost", cardSetId],
+    queryFn: () => getCardSetCost(cardSetId),
+  });
+  const c = cost.data;
+  if (!c || c.image_generations === 0) return null;
+  return (
+    <span
+      title={`${c.image_generations} платных генераций изображения${c.estimated ? " · оценка по таблице цен" : ""}`}
+      className="inline-flex items-center gap-1 rounded-full border border-border bg-card/40 px-2.5 py-1 text-xs text-muted-foreground"
+    >
+      <Coins className="h-3.5 w-3.5 text-primary/70" />
+      {c.estimated ? "≈ " : ""}${c.total_cost_usd.toFixed(2)}
+    </span>
+  );
+}
+
 function CardStudio({ card, index }: { card: Card; index: number }) {
   const qc = useQueryClient();
   const [mode, setMode] = useState<CardImageMode>("edit");
@@ -194,7 +217,10 @@ function CardStudio({ card, index }: { card: Card; index: number }) {
       const job = await generateCardImage(card.id, { mode });
       return waitForJob(job.id, (j: Job) => setProgress(j.progress));
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["versions", card.id] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["versions", card.id] });
+      qc.invalidateQueries({ queryKey: ["cost"] });
+    },
     onSettled: () => setProgress(null),
   });
 
@@ -598,7 +624,10 @@ function FeedbackItem({ feedback, cardId }: { feedback: Feedback; cardId: string
       const job = await regenerateFromFeedback(feedback.id);
       return waitForJob(job.id, (j: Job) => setProgress(j.progress));
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["versions", cardId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["versions", cardId] });
+      qc.invalidateQueries({ queryKey: ["cost"] });
+    },
     onSettled: () => setProgress(null),
   });
 

@@ -31,6 +31,7 @@ from marketplace_shared.db import (
     ProductAsset,
     Project,
 )
+from marketplace_shared.observability import apply_estimated_cost
 from marketplace_shared.pipeline import (
     CardConcept,
     FeedbackStage,
@@ -69,6 +70,11 @@ def _run[T](coro: Coroutine[Any, Any, T]) -> T:
 def _media_type_for(key: str) -> str:
     guessed, _ = mimetypes.guess_type(key)
     return guessed or "image/png"
+
+
+def _image_usage(result: Any) -> dict[str, Any]:
+    """Usage стадии [5] с оценкой стоимости (если провайдер её не вернул)."""
+    return apply_estimated_cost(result.usage, kind="image", model=result.model).model_dump()
 
 
 def _provider_id(provider: object) -> str:
@@ -252,7 +258,7 @@ def run_card_image(
                 "model": result.model,
                 "seed": seed,
                 "background_prompt": prompt,
-                "usage": result.usage.model_dump(),
+                "usage": _image_usage(result),
             }
     else:
         photo_bytes = storage.get_object(photo.s3_key)
@@ -291,7 +297,7 @@ def run_card_image(
                 "model": result.model,
                 "seed": seed,
                 "instruction": instruction,
-                "usage": result.usage.model_dump(),
+                "usage": _image_usage(result),
             }
 
     last_no = session.scalar(

@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 
 from marketplace_shared import jobs as job_const
 from marketplace_shared.db import Job, sync_session_scope
+from marketplace_shared.observability import get_tracer
 from marketplace_shared.providers.errors import TransientProviderError
 from marketplace_worker import jobs as job_lifecycle
 from marketplace_worker import stages
@@ -100,13 +101,15 @@ def run_job_task(
     :data:`MAX_RETRIES`), помечая Job статусом ``retry``; постоянную — фиксирует как
     ``failure``. И то и другое логируется.
     """
+    tracer = get_tracer()
     with sync_session_scope() as session:
         job = _load_job(session, job_id)
         job_lifecycle.mark_running(session, job, stage=stage, progress=progress)
         log.info("Стадия %s начата (job=%s)", stage, job_id)
         started = time.perf_counter()
         try:
-            result = work(session)
+            with tracer.span(stage, job_id=job_id, type=job.type):
+                result = work(session)
         except Exception as exc:
             elapsed = time.perf_counter() - started
             retries = self.request.retries
