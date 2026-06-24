@@ -16,6 +16,7 @@ from marketplace_api.config import get_settings
 from marketplace_api.routers import (
     assets,
     cards,
+    feedback,
     generate,
     health,
     ideas,
@@ -50,6 +51,7 @@ app.include_router(assets.router, prefix="/api")
 app.include_router(ideas.router, prefix="/api")
 app.include_router(cards.router, prefix="/api")
 app.include_router(generate.router, prefix="/api")
+app.include_router(feedback.router, prefix="/api")
 app.include_router(jobs.router, prefix="/api")
 
 

@@ -30,6 +30,16 @@ from .concepts import (
     build_concepts_request,
     generate_concepts,
 )
+from .feedback import (
+    ChangeOperation,
+    FeedbackActionType,
+    FeedbackChange,
+    FeedbackInput,
+    FeedbackStage,
+    ParsedFeedback,
+    build_feedback_request,
+    parse_feedback,
+)
 from .ideas import (
     IdeaSlide,
     ProductBrief,
@@ -75,6 +85,15 @@ __all__ = [
     "concept_to_render_blocks",
     "build_card_render_request",
     "render_card_text",
+    # стадия [9] — разбор фидбэка
+    "FeedbackInput",
+    "ParsedFeedback",
+    "FeedbackStage",
+    "FeedbackActionType",
+    "FeedbackChange",
+    "ChangeOperation",
+    "build_feedback_request",
+    "parse_feedback",
     # контент-адресуемый кэш стадий
     "PipelineSettings",
     "get_pipeline_settings",

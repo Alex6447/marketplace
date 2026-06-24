@@ -188,6 +188,33 @@ class CardTextRenderRequest(BaseModel):
     template_key: str | None = None
 
 
+# --- Feedback (стадия [9]) --------------------------------------------------
+
+
+class FeedbackCreate(BaseModel):
+    """Тело запроса: свободный текст фидбэка менеджера к версии карточки."""
+
+    text: str = Field(min_length=1)
+    #: Переопределить модель LLM-парсера (иначе — дефолт выбранного провайдера).
+    model: str | None = None
+
+
+class FeedbackRead(BaseModel):
+    """Фидбэк к версии карточки и его структурированный разбор (стадия [9])."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    card_version_id: uuid.UUID
+    text: str
+    #: Структура соответствует `marketplace_shared.pipeline.ParsedFeedback`
+    #: (действие + целевая стадия + дельта-параметры); None, пока не разобрано.
+    parsed_action: dict[str, Any] | None = Field(
+        default=None, validation_alias="parsed_action_json"
+    )
+    created_at: datetime
+
+
 # --- ProductAsset -----------------------------------------------------------
 
 AssetType = Literal["photo", "reference"]
